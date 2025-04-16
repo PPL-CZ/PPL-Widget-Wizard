@@ -1,0 +1,2346 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PPL Widget Wizard - Vylepšený</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* --- Základní styly a proměnné --- */
+        :root {
+            --ppl-primary: #00519e; /* Modrá barva PPL */
+            --ppl-secondary: #0087cd; /* Světle modrá barva PPL */
+            --ppl-success: #28a745; /* Zelená pro úspěch/dokončení */
+            --ppl-danger: #dc3545; /* Červená pro chyby */
+            --ppl-info: #17a2b8; /* Modrozelená pro info */
+            --ppl-gray: #f2f2f2;
+            --ppl-medium-gray: #e9ecef; /* Trochu tmavší šedá */
+            --ppl-dark-gray: #333333;
+            --ppl-light-gray: #ffffff; /* Změna na bílou pro kontrastnější karty */
+            --text-color: #495057;
+            --border-radius: 6px; /* Globální border-radius */
+            --transition-speed: 0.2s;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Roboto', sans-serif; }
+        html { scroll-behavior: smooth; } /* Plynulé scrollování */
+        body { background-color: #f8f9fa; color: var(--text-color); line-height: 1.6; margin: 0; padding-top: 20px; padding-bottom: 0;  min-height: 100vh; counter-reset: step; }
+        .container { max-width: 1100px; margin: 20px auto; padding: 0 15px; } // původní hodnota max-width: 1280px - šířka wizard
+
+        /* --- Hlavička --- */
+        .wizard-header { display: flex; align-items: center; margin-bottom: 40px; padding: 15px 20px; background-color: white; border-radius: var(--border-radius); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .wizard-header img { height: 45px; margin-right: 15px; }
+        .wizard-header h1 { font-size: 22px; font-weight: 500; color: var(--ppl-primary); }
+
+        /* --- Přepínač jazyků --- */
+        .language-selector-container { margin-bottom: 25px; display: flex; justify-content: flex-end; padding: 0 5px; }
+        .language-selector { display: flex; gap: 8px; }
+        .lang-button { padding: 6px 12px; border-radius: var(--border-radius); border: 1px solid var(--ppl-medium-gray); background-color: white; color: var(--ppl-primary); cursor: pointer; font-size: 14px; font-weight: 500; transition: background-color var(--transition-speed), color var(--transition-speed); }
+        .lang-button:hover { background-color: var(--ppl-gray); }
+        .lang-button.active { background-color: var(--ppl-primary); color: white; border-color: var(--ppl-primary); }
+
+        /* --- Ukazatel postupu --- */
+        .wizard-progress { display: flex; margin-bottom: 35px; list-style: none; padding: 0; position: relative; justify-content: space-between; }
+        .wizard-step { flex: 1; text-align: center; padding: 20px 5px; color: var(--ppl-dark-gray); position: relative; font-size: 13px; font-weight: 500; background-color: transparent; border-right: none; transition: color var(--transition-speed); z-index: 1; cursor: pointer;}
+        .wizard-step::before { content: counter(step); counter-increment: step; display: block; width: 55px; height: 55px; line-height: 53px; border: 1px solid var(--ppl-medium-gray); border-radius: 50%; background-color: white; margin: 0 auto 8px auto; font-weight: 700; color: var(--text-color); transition: background-color var(--transition-speed), color var(--transition-speed), border-color var(--transition-speed); margin-top: -25px; font-size: 19px;}
+        .wizard-step:not(:last-child)::after { content: ''; position: absolute; width: calc(100% - 30px); height: 2px; background-color: var(--ppl-medium-gray); top: 15px; left: calc(50% + 15px); z-index: -1; transition: background-color var(--transition-speed); }
+        .wizard-step.active { color: var(--ppl-primary); background-color: transparent; }
+        .wizard-step.active::before { background-color: var(--ppl-primary); color: white; border-color: var(--ppl-primary); }
+        .wizard-step.completed { color: var(--ppl-secondary); background-color: transparent; }
+        .wizard-step.completed::before { content: '✔'; background-color: var(--ppl-success); border-color: var(--ppl-success); color: white; font-size: 24px; line-height: 54px; }
+        .wizard-step.completed::after { background-color: var(--ppl-success); }
+
+        /* --- Obsah kroku (Karta) --- */
+        .wizard-content { background-color: var(--ppl-light-gray); border-radius: var(--border-radius); padding: 35px 40px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.07); margin-bottom: 35px; border: 1px solid var(--ppl-medium-gray); transition: opacity 0.3s ease; opacity: 1; }
+        .step-title { font-size: 20px; margin-bottom: 10px; color: var(--ppl-primary); font-weight: 500; display: inline-block; }
+        .step-title + .description { margin-bottom: 30px; }
+        .description { margin-bottom: 20px; font-size: 15px; color: #6c757d; }
+        h3.step-title { font-size: 18px; margin-top: 35px; margin-bottom: 8px; }
+
+.wizard-content.hidden {
+    opacity: 0;
+    display: block !important;
+    position: absolute;
+    pointer-events: none;
+    z-index: -1;
+}
+
+        /* --- Checkboxy a Radio buttony --- */
+        .checkbox-group { margin-bottom: 25px; }
+        .checkbox-item { display: flex; align-items: center; margin-bottom: 12px; padding: 15px; border-radius: var(--border-radius); background-color: #ffffff; border: 1px solid var(--ppl-medium-gray); transition: background-color var(--transition-speed), border-color var(--transition-speed), box-shadow var(--transition-speed); cursor: pointer; position: relative; }
+        .checkbox-item:hover { background-color: #f8f9fa; border-color: #ced4da; }
+        .checkbox-item input[type="checkbox"], .checkbox-item input[type="radio"] { opacity: 0; position: absolute; width: 1px; height: 1px; }
+        .checkbox-item label { font-size: 16px; cursor: pointer; width: 100%; position: relative; padding-left: 35px; line-height: 1.4; }
+        .checkbox-item label::before { content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 20px; height: 20px; border: 2px solid var(--ppl-medium-gray); background-color: white; transition: border-color var(--transition-speed), background-color var(--transition-speed); }
+        .checkbox-item input[type="radio"] + label::before { border-radius: 50%; }
+        .checkbox-item input[type="checkbox"] + label::before { border-radius: 3px; }
+        .checkbox-item input:checked + label::before { background-color: var(--ppl-primary); border-color: var(--ppl-primary); animation: checkmark 0.3s ease-in-out forwards; transition: background-color 0.3s ease, border-color 0.3s ease, transform 0.3s ease; }
+// .checkbox-item input:checked + label::before { animation: checkmark 0.3s ease-in-out forwards; }
+
+@keyframes checkmark {
+  0% { 
+    border-color: var(--ppl-primary);
+    background-color: var(--ppl-primary);
+  }
+  50% { 
+    border-color: var(--ppl-primary);
+    background-color: var(--ppl-primary);
+    box-shadow: 0 0 0 3px rgba(0, 81, 158, 0.2);
+  }
+  100% { 
+    border-color: var(--ppl-primary);
+    background-color: var(--ppl-primary);
+    box-shadow: none;
+  }
+}
+
+        .checkbox-item input:checked + label::after { content: ''; position: absolute; left: 7px; top: 40%; transform: translateY(-50%) rotate(45deg); width: 6px; height: 12px; border: solid white; border-width: 0 2px 2px 0; }
+        .checkbox-item input[type="radio"]:checked + label::after { left: 5px; top: 50%; transform: translateY(-50%); width: 10px; height: 10px; border-radius: 50%; background-color: white; border: none; content: ''; }
+        .checkbox-item input:checked + label { font-weight: 500; }
+
+        /* Ikony u voleb (Krok 1) */
+        label[for="parcelshop"]::before, label[for="parcelbox"]::before, label[for="alzabox"]::before { left: 0px; }
+        label[for="parcelshop"]::after, label[for="parcelbox"]::after, label[for="alzabox"]::after { left: 37px; }
+        label[for="parcelshop"], label[for="parcelbox"], label[for="alzabox"] { padding-left: 45px; position: relative; }
+        .checkbox-item label[for="parcelshop"]::before:first-child, .checkbox-item label[for="parcelbox"]::before:first-child, .checkbox-item label[for="alzabox"]::before:first-child { content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 24px; height: 24px; background-repeat: no-repeat; background-position: center; background-size: contain; border: none; background-color: transparent; border-radius: 0; }
+        .checkbox-item label[for="parcelshop"]::before:first-child { background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%2300519e"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>'); }
+        .checkbox-item label[for="parcelbox"]::before:first-child { background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%2300519e"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-8 13H4V8l8 5 8-5v7h-8v2zM12 10l-8-5h16l-8 5z"/></svg>'); }
+        .checkbox-item label[for="alzabox"]::before:first-child { background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%2300519e"><path d="M21 6h-4c0-1.1-.9-2-2-2h-6c-1.1 0-2 .9-2 2H3v14h18V6zm-8-1c.55 0 1 .45 1 1h-2c0-.55.45-1 1-1zM9 18H7v-2h2v2zm0-3H7v-2h2v2zm0-3H7V9h2v3zm4 6h-2v-2h2v2zm0-3h-2v-2h2v2zm0-3h-2V9h2v3zm4 6h-2v-2h2v2zm0-3h-2v-2h2v2zm0-3h-2V9h2v3z"/></svg>'); }
+
+        /* --- Tooltipy / Nápovědy --- */
+        .tooltip-container { position: relative; display: inline-flex; align-items: center; margin-left: 8px; }
+        .tooltip-icon { display: inline-flex; justify-content: center; align-items: center; width: 18px; height: 18px; border-radius: 50%; background-color: var(--ppl-info); color: white; font-size: 12px; font-weight: bold; cursor: help; user-select: none; }
+        .tooltip-icon svg { width: 14px; height: 14px; fill: white; }
+        .tooltip-text { visibility: hidden; width: 250px; background-color: var(--ppl-dark-gray); color: #fff; text-align: left; border-radius: var(--border-radius); padding: 10px 15px; position: absolute; z-index: 10; bottom: 130%; left: 50%; margin-left: -125px; opacity: 0; transition: opacity var(--transition-speed), visibility var(--transition-speed); font-size: 13px; line-height: 1.5; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .tooltip-text::after { content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid; border-color: var(--ppl-dark-gray) transparent transparent transparent; }
+        .tooltip-container:hover .tooltip-text, .tooltip-container:focus-within .tooltip-text, .tooltip-container:hover .overlay { visibility: visible; opacity: 1; } 
+        .checkbox-item .tooltip-container { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); margin-left: 0; }
+        .checkbox-item .tooltip-text { bottom: auto; top: 130%; left: auto; right: 0; margin-left: 0; }
+        .checkbox-item .tooltip-text::after { top: -10px; bottom: auto; border-color: transparent transparent var(--ppl-dark-gray) transparent; }
+
+        /* --- Validační hlášky --- */
+        .validation-message { color: var(--ppl-danger); font-size: 14px; margin-top: 15px; padding: 10px 15px; border: 1px solid var(--ppl-danger); border-radius: var(--border-radius); background-color: #f8d7da; display: none; }
+        .validation-message.active { display: block; }
+
+        /* --- Tlačítka --- */
+        .button-group { display: flex; justify-content: space-between; margin-top: 40px; gap: 15px; }
+        button { padding: 12px 25px; border: none; border-radius: var(--border-radius); font-size: 16px; font-weight: 500; cursor: pointer; transition: background-color var(--transition-speed), box-shadow var(--transition-speed), transform var(--transition-speed); display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        button:hover { box-shadow: 0 4px 10px rgba(0,0,0,0.15); transform: translateY(-1px); }
+        button:active { transform: translateY(0); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        button:disabled { opacity: 0.6; cursor: not-allowed; } /* Vzhled pro neaktivní tlačítko (po kopírování) */
+        button svg { width: 18px; height: 18px; fill: currentColor; }
+        button.next { background-color: var(--ppl-primary); color: white; }
+        button.next:hover:not(:disabled) { background-color: #004080; } /* Hover jen pokud není disabled */
+        button.prev { background-color: var(--ppl-medium-gray); color: var(--ppl-dark-gray); box-shadow: none; border: 1px solid #ced4da; }
+        button.prev:hover { background-color: #d1d5db; box-shadow: 0 2px 5px rgba(0,0,0,0.1); transform: translateY(-1px); }
+        button.generate { background-color: var(--ppl-secondary); color: white; }
+        button.generate:hover:not(:disabled) { background-color: #0075b0; }
+        .copy-button { background-color: var(--ppl-secondary); color: white; border: none; border-radius: var(--border-radius); padding: 8px 16px; cursor: pointer; font-size: 14px; margin-bottom: 25px; transition: background-color var(--transition-speed); display: inline-flex; align-items: center; gap: 6px; }
+        .copy-button:hover:not(:disabled) { background-color: #0075b0; }
+        .copy-button svg { width: 16px; height: 16px; fill: currentColor; }
+        button#download-code { background-color: var(--ppl-success); }
+        button#download-code:hover:not(:disabled) { background-color: #218838; }
+	@keyframes pulse {
+  0% { transform: scale(1); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+  50% { transform: scale(1.03); box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
+  100% { transform: scale(1); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+}
+
+button.next {
+  animation: pulse 2s infinite;
+  backface-visibility: hidden; /* Zabrání rozmazání textu */
+  transform-style: preserve-3d; /* Zlepší renderování */
+  perspective: 1000px; /* Zlepší renderování */
+}
+
+button.next:hover, 
+button.next:focus {
+  animation: none;
+  transform: translateY(-1px); /* Již máte toto v původním stylu */
+  box-shadow: 0 4px 10px rgba(0,0,0,0.15); /* Již máte toto v původním stylu */
+}
+
+ .info-button {
+        background-color: var(--ppl-info);
+        color: white;
+        border: none;
+        border-radius: var(--border-radius);
+        padding: 8px 16px;
+        cursor: pointer;
+        font-size: 14px;
+        margin-left: 10px;
+        transition: background-color var(--transition-speed);
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    .info-button:hover {
+        background-color: #1293a8;
+    }
+    
+    .info-button svg {
+        width: 16px;
+        height: 16px;
+        fill: currentColor;
+    }
+
+/* Přidané styly pro kontejner tlačítek */
+.buttons-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 25px;
+    width: 100%; /* Zajistí, že container zabere celou šířku */
+}
+
+/* Styly pro info tlačítko */
+.info-button {
+    background-color: var(--ppl-info);
+    color: white;
+    border: none;
+    border-radius: var(--border-radius);
+    padding: 8px 16px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color var(--transition-speed);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center; /* Zajistí zarovnání textu a ikony */
+    gap: 6px;
+    height: 38px; /* Stejná výška jako copy tlačítko */
+    margin: 0; /* Odstranění případných implicitních marginů */
+}
+
+.info-button:hover {
+    background-color: #1293a8;
+}
+
+.info-button svg {
+    width: 16px;
+    height: 16px;
+    fill: currentColor;
+}
+
+/* Ujistíme se, že copy button má stejnou výšku */
+.copy-button {
+    height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0; /* Odstranění případných implicitních marginů */
+    margin-bottom: 0 !important; /* Přepíše původní margin-bottom */
+}
+
+
+
+        /* --- Bloky s kódem --- */
+        .result-container h3 { margin-bottom: 10px; font-size: 17px; font-weight: 500; color: var(--ppl-primary); }
+        .code-block { background-color: #2d2d2d; color: #f8f8f2; border-radius: var(--border-radius); padding: 15px 20px; overflow-x: auto; font-family: 'Courier New', Courier, monospace; margin-bottom: 10px; border: 1px solid #444; font-size: 14px; }
+
+        /* --- Skrytí elementů --- */
+        .hidden { display: none !important; }
+
+        /* --- Souřadnice --- */
+        #static-map-coordinates input[type="text"] { width: 100%; padding: 12px 15px; border: 1px solid #ced4da; border-radius: var(--border-radius); font-size: 15px; transition: border-color var(--transition-speed), box-shadow var(--transition-speed); }
+        #static-map-coordinates input[type="text"]:focus { border-color: var(--ppl-primary); box-shadow: 0 0 0 2px rgba(0, 81, 158, 0.2); outline: none; }
+        #static-map-coordinates > div { display: flex; gap: 20px; margin-top: 15px; }
+        #static-map-coordinates > div > div { flex: 1; }
+        #static-map-coordinates label { display: block; margin-bottom: 5px; font-weight: 500; font-size: 14px; }
+        #static-map-coordinates .description a { color: var(--ppl-secondary); text-decoration: none; font-weight: 500;}
+        #static-map-coordinates .description a:hover { text-decoration: underline; }
+
+         /* --- Náhled + Spinner --- 7.4.2024 - zde jsem upravil width na 150 */
+         #preview-container { width: 100%; height: 600px; border: 1px solid var(--ppl-medium-gray); border-radius: var(--border-radius); overflow: hidden; justify-content: center; align-items: center; }
+         #step6 .button-group { margin-top: 0; margin-bottom: 25px; justify-content: flex-start; gap: 10px; }
+         .spinner { width: 50px; height: 50px; border: 5px solid var(--ppl-medium-gray); border-top-color: var(--ppl-primary); border-radius: 50%; animation: spin 1s linear infinite; display: none; }
+         .spinner.active { display: block; }
+         @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* --- Mobilní optimalizace --- */
+        @media (max-width: 768px) {
+            body { padding-top: 10px; }
+            .container { padding: 0 10px; margin: 10px auto; }
+            .wizard-header { flex-direction: column; align-items: flex-start; padding: 15px; margin-bottom: 25px; }
+            .wizard-header img { height: 35px; margin-bottom: 10px; }
+            .wizard-header h1 { font-size: 18px; }
+            .language-selector-container { margin-bottom: 20px; justify-content: center; }
+            .wizard-progress { flex-wrap: wrap; margin-bottom: 25px; }
+            .wizard-step { font-size: 11px; padding-bottom: 15px; flex-basis: calc(33.33% - 10px); margin: 5px; }
+            .wizard-step::before { width: 25px; height: 25px; line-height: 23px; font-size: 12px; margin-bottom: 5px;}
+            .wizard-step.completed::before { font-size: 14px; line-height: 25px;}
+            .wizard-step::after { display: none; }
+            .wizard-content { padding: 20px 25px; margin-bottom: 25px; }
+            .step-title { font-size: 18px; }
+            h3.step-title { font-size: 16px; }
+            .description { font-size: 14px; }
+
+             .checkbox-item { padding: 12px; }
+             .checkbox-item label { font-size: 15px; padding-left: 30px; }
+             .checkbox-item label::before { width: 18px; height: 18px; left: 0; }
+             .checkbox-item input:checked + label::after { left: 6px; width: 5px; height: 10px; }
+             .checkbox-item input[type="radio"]:checked + label::after { left: 4px; width: 8px; height: 8px; }
+             /* Ikony na mobilu */
+             .checkbox-item label[for="parcelshop"]::before:first-child, .checkbox-item label[for="parcelbox"]::before:first-child, .checkbox-item label[for="alzabox"]::before:first-child { width: 20px; height: 20px; }
+             .checkbox-item label[for="parcelshop"], .checkbox-item label[for="parcelbox"], .checkbox-item label[for="alzabox"] { padding-left: 35px; }
+             .checkbox-item label[for="parcelshop"]::before, .checkbox-item label[for="parcelbox"]::before, .checkbox-item label[for="alzabox"]::before { left: 0px; }
+             .checkbox-item label[for="parcelshop"]::after, .checkbox-item label[for="parcelbox"]::after, .checkbox-item label[for="alzabox"]::after { left: 34px; }
+             /* Tooltip na mobilu */
+             .checkbox-item .tooltip-container { right: 10px; }
+             .tooltip-text { width: 200px; margin-left: -100px; }
+             .checkbox-item .tooltip-text { margin-left: 0; width: calc(100vw - 60px); max-width: 250px; }
+
+            .button-group { flex-direction: column; gap: 15px; margin-top: 30px; }
+             #step5 .button-group { flex-direction: column; }
+             #step5 .button-group > div { display: flex; flex-direction: column; gap: 15px; width: 100%; margin-top: 0; justify-content: stretch; }
+            .button-group button { width: 100%; padding: 12px 15px; font-size: 15px; }
+             button svg { width: 16px; height: 16px; }
+            #static-map-coordinates > div { flex-direction: column; gap: 15px; }
+            #static-map-coordinates input[type="text"] { font-size: 14px; }
+            #preview-container { height: 1280px; }
+            .validation-message { font-size: 13px; padding: 8px 12px; }
+
+            @media (max-width: 380px) {
+                 button svg { display: none; }
+                 button { gap: 0; justify-content: center; }
+                 .wizard-step { font-size: 13px; flex-basis: 100%; text-align: left; padding-left: 10px;}
+                 .wizard-step::before { display: none;}
+                 .wizard-step.completed { color: var(--ppl-success); background-color: transparent; }
+                 .tooltip-icon { width: 16px; height: 16px; font-size: 10px;}
+                 .tooltip-icon svg { width: 12px; height: 12px; }
+            }
+        }
+
+/* --- Oprava zobrazení validační hlášky pro souřadnice --- */
+#step4-validation-coords.validation-message { 
+    display: none !important; /* Skryje výchozí stav, přebije externí styl */
+}
+
+#step4-validation-coords.validation-message.active {
+    display: block !important; /* Zobrazí aktivní stav, přebije externí styl */
+    /* Poznámka: Pokud by block dělal problémy s layoutem, 
+       možná by bylo lepší použít 'flex' i zde, ale jen když je 'active' */
+    /* display: flex !important; */ 
+}
+
+  /* Styly pro popup s nápovědou */
+    .help-popup {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        justify-content: center;
+        align-items: center;
+    }
+    
+    .help-popup.active {
+        display: flex;
+    }
+    
+    .help-popup-content {
+        background-color: white;
+        padding: 25px;
+        border-radius: var(--border-radius);
+        width: 80%;
+        max-width: 800px;
+        max-height: 80vh;
+        overflow-y: auto;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        position: relative;
+    }
+    
+    .help-popup-close {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        background: none;
+        border: none;
+        font-size: 20px;
+        cursor: pointer;
+        color: var(--ppl-dark-gray);
+    }
+    
+    .help-popup-title {
+        font-size: 20px;
+        margin-bottom: 20px;
+        color: var(--ppl-primary);
+        font-weight: 500;
+        padding-bottom: 10px;
+        border-bottom: 1px solid var(--ppl-medium-gray);
+    }
+    
+    .help-content-block {
+        margin-bottom: 25px;
+    }
+    
+    .help-content-subtitle {
+        font-size: 16px;
+        font-weight: 500;
+        margin-bottom: 10px;
+        color: var(--ppl-secondary);
+    }
+    
+    .example-structure {
+        background-color: #f7f9fc;
+        padding: 15px;
+        border-radius: var(--border-radius);
+        border-left: 3px solid var(--ppl-primary);
+        font-family: 'Courier New', monospace;
+        font-size: 14px;
+        overflow-x: auto;
+        white-space: pre;
+        margin: 15px 0;
+        line-height: 1.5;
+    }
+    
+    .highlight {
+        background-color: #fff4cc;
+        padding: 2px 4px;
+        border-radius: 3px;
+    }
+    
+    .highlight-placeholder {
+        background-color: #e6f7ff;
+        padding: 2px 4px;
+        border-radius: 3px;
+        font-style: italic;
+    }
+    
+    .help-hint {
+        background-color: #f1f8e9;
+        padding: 12px 15px;
+        border-radius: var(--border-radius);
+        border-left: 3px solid #7cb342;
+        margin: 15px 0;
+    }
+    
+    .help-hint strong {
+        color: #33691e;
+    }
+    
+    @media (max-width: 768px) {
+        .help-popup-content {
+            width: 95%;
+            padding: 20px;
+        }
+        
+        .example-structure {
+            font-size: 12px;
+        }
+    }
+
+#step6.hidden {
+    display: none !important;
+    height: 0;
+    overflow: hidden;
+    margin: 0;
+    padding: 0;
+}
+
+/* Základní úprava skrývání obsahu */
+.wizard-content.hidden {
+    display: none !important;
+}
+
+/* Dynamická výška náhledového kontejneru v kroku 6 */
+#step6:not(.hidden) #preview-container {
+    height: auto;
+    min-height: 550px;
+    max-height: 80vh;
+}
+
+/* Mobilní verze s menší výškou náhledu */
+@media (max-width: 768px) {
+    #step6:not(.hidden) #preview-container {
+        min-height: 450px;
+        max-height: 70vh;
+    }
+}
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="wizard-header">
+           <img src="https://www.ppl.cz/documents/20122/6525005/hlavi%C4%8Dka+logo+%281%29.svg" alt="PPL Logo" class="logo">
+           <h1>PPL Widget Wizard</h1>
+        </div>
+
+         <div class="language-selector-container">
+            <div class="language-selector">
+                <button id="lang-switch-cs" class="lang-button active">Česky</button>
+                <button id="lang-switch-en" class="lang-button">English</button>
+            </div>
+        </div>
+
+  <ol class="wizard-progress">
+    <li class="wizard-step active" id="step1-indicator" data-step="1">Výběr typů míst</li>
+    <li class="wizard-step" id="step2-indicator" data-step="2">Výběr zemí</li>
+    <li class="wizard-step" id="step3-indicator" data-step="3">Výchozí země</li>
+    <li class="wizard-step" id="step4-indicator" data-step="4">Typ mapy</li>
+    <li class="wizard-step" id="step5-indicator" data-step="5">Vygenerovaný kód</li>
+    <li class="wizard-step" id="step6-indicator" data-step="6">Náhled widgetu</li>
+  </ol>
+
+        <div class="wizard-content hidden" id="step1">
+            <h2 class="step-title">Vyberte typy výdejních míst</h2>
+            <p class="description">Zvolte, která výdejní místa (ParcelShopy, PPL ParcelBoxy, AlzaBoxy) chcete zobrazit ve widgetu na vašem e-shopu.</p>
+
+            <div class="checkbox-group" id="step1-options">
+                <div class="checkbox-item">
+                    <input type="checkbox" id="parcelshop" >
+                    <label for="parcelshop">ParcelShop - Výdejní místa PPL</label>
+                </div>
+                <div class="checkbox-item">
+                    <input type="checkbox" id="parcelbox" >
+                    <label for="parcelbox">PPL ParcelBox - Samoobslužné boxy PPL</label>
+                 </div>
+                 <div class="checkbox-item">
+                    <input type="checkbox" id="alzabox" >
+                    <label for="alzabox">AlzaBox - Samoobslužné boxy Alza</label>
+                 </div>
+            </div>
+             <div class="validation-message" id="step1-validation"></div>
+
+            <div class="button-group">
+                <div></div>
+                <button class="next" id="step1-next">
+                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                     <span>Pokračovat</span>
+                 </button>
+            </div>
+        </div>
+
+        <div class="wizard-content hidden" id="step2">
+            <h2 class="step-title">Vyberte dostupné země</h2>
+            <p class="description">Zvolte, pro které země bude možné ve widgetu vybírat výdejní místa.</p>
+
+            <div class="checkbox-group" id="step2-options">
+                <div class="checkbox-item">
+                    <input type="checkbox" id="cz" checked>
+                    <label for="cz">Česká republika</label>
+                </div>
+                 <div class="checkbox-item">
+                    <input type="checkbox" id="sk">
+                    <label for="sk">Slovensko</label>
+                </div>
+                 <div class="checkbox-item">
+                    <input type="checkbox" id="pl">
+                    <label for="pl">Polsko</label>
+                </div>
+                <div class="checkbox-item">
+                     <input type="checkbox" id="de">
+                     <label for="de">Německo</label>
+                 </div>
+            </div>
+             <div class="validation-message" id="step2-validation"></div>
+
+            <div class="button-group">
+                 <button class="prev" id="step2-prev">
+                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd" /></svg>
+                     <span>Zpět</span>
+                 </button>
+                 <button class="next" id="step2-next">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                      <span>Pokračovat</span>
+                 </button>
+            </div>
+        </div>
+
+        <div class="wizard-content hidden" id="step3">
+            <h2 class="step-title">Nastavte výchozí zobrazení</h2>
+             <p class="description">Zvolte, která z vybraných zemí se má ve widgetu zobrazit jako první a v jakém jazyce.</p>
+
+            <h3 class="step-title">Výchozí země</h3>
+            <div class="checkbox-group" id="default-country-container">
+                </div>
+             <div class="validation-message" id="step3-validation-country"></div>
+
+
+            <h3 class="step-title">Jazyk widgetu</h3>
+            <p class="description">Vyberte jazykovou verzi ovládacích prvků widgetu.</p>
+            <div class="checkbox-group">
+                <div class="checkbox-item">
+                    <input type="radio" id="lang-cs" name="language" value="cs" checked>
+                    <label for="lang-cs">Čeština</label>
+                </div>
+                <div class="checkbox-item">
+                    <input type="radio" id="lang-en" name="language" value="en">
+                    <label for="lang-en">Angličtina</label>
+                </div>
+            </div>
+
+            <div class="button-group">
+                <button class="prev" id="step3-prev">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd" /></svg>
+                      <span>Zpět</span>
+                 </button>
+                 <button class="next" id="step3-next">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                      <span>Pokračovat</span>
+                 </button>
+            </div>
+        </div>
+
+
+
+
+
+
+<!-- Krok 4 -->
+<div class="wizard-content hidden" id="step4">
+    <h2 class="step-title">Vyberte typ mapy</h2>
+    <p class="description">Zvolte, jaký typ mapy chcete ve widgetu zobrazit a jak se bude chovat.</p>
+    
+    <div class="checkbox-group">
+        <div class="checkbox-item">
+            <input type="radio" id="map-default" name="map-type" value="default" checked>
+            <label for="map-default">
+                <strong>Default</strong> - Zobrazuje mapu se všemi funkcionalitami, s tlačítkem Vybrat výdejní místo, které předává data vybraného výdejního místa rodičovské aplikaci ve formě eventu.
+            </label>
+            <div class="tooltip-container">
+                <span class="tooltip-icon" tabindex="0">?</span>
+                <span class="tooltip-text">Nejčastější volba pro e-shopy. Umožňuje zákazníkovi vybrat si preferované výdejní místo přímo v košíku.</span>
+            </div>
+        </div>
+        
+        <div class="checkbox-item">
+            <input type="radio" id="map-static" name="map-type" value="static">
+            <label for="map-static">
+                <strong>Static</strong> - Zobrazuje statickou mapu s jediným zobrazeným bodem, který je dle dat z API nejblíže definovanému středu mapy. Definice atributů <code>data-lat</code> a <code>data-lng</code> určující střed mapy je v kombinaci s tímto módem velmi doporučeno.
+            </label>
+            <div class="tooltip-container">
+                <span class="tooltip-icon" tabindex="0">?</span>
+                <span class="tooltip-text">Vhodné, pokud chcete zobrazit pouze jedno konkrétní místo (např. vaši pobočku) nebo nejbližší Parcelbox k adrese vaší firmy na kontaktní stránce. Vyžaduje zadání GPS souřadnic.</span>
+            </div>
+        </div>
+        
+        <div class="checkbox-item">
+            <input type="radio" id="map-catalog" name="map-type" value="catalog">
+            <label for="map-catalog">
+                <strong>Catalog</strong> - Zobrazuje mapu se všemi funkcionalitami, mimo tlačítka Vybrat výdejní místo. Toto použití je vhodné pro uživatele, které chceme primárně směrovat na detaily výdejních míst nasazené na portálu PPL.
+            </label>
+            <div class="tooltip-container">
+                <span class="tooltip-icon" tabindex="0">?</span>
+                <span class="tooltip-text">Vhodné pro informační stránky, kde nechcete umožnit výběr místa, ale pouze zobrazit mapu se všemi dostupnými místy (např. stránky "Kde nás najdete").</span>
+            </div>
+        </div>
+    </div>
+
+<!-- Krok 4 pokračování -->
+<div id="static-map-coordinates" class="hidden">
+    <h3 class="step-title">Souřadnice pro statickou mapu</h3>
+    <p class="description">Zadejte geografické souřadnice středu mapy. Pro typ Static je to důrazně doporučeno.</p>
+    
+    <div>
+        <div>
+            <label for="map-lat">Zeměpisná šířka (lat):</label>
+            <input type="text" id="map-lat" placeholder="např. 50.0755">
+        </div>
+        <div>
+            <label for="map-lng">Zeměpisná délka (lng):</label>
+            <input type="text" id="map-lng" placeholder="např. 14.4378">
+        </div>
+    </div>
+    
+    <div class="validation-message" id="step4-validation-coords"></div>
+</div>
+
+<div class="button-group">
+    <button class="prev" id="step4-prev">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd" /></svg>
+        <span>Zpět</span>
+    </button>
+    <button class="next" id="step4-next">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+        <span>Pokračovat</span>
+    </button>
+</div>
+</div>
+
+<!-- Krok 5 -->
+<div class="wizard-content hidden" id="step5">
+    <h2 class="step-title">Vygenerovaný kód pro vložení na váš web</h2>
+    <p class="description">Zkopírujte následující kód a vložte jej do svého eshopu pro zobrazení widgetu PPL výdejních míst s vašimi vlastními nastaveními.</p>
+    
+    <div class="result-container">
+        <h3>Script pro vložení do hlavičky stránky</h3>
+<div class="code-block" id="head-code"></div>
+<div class="buttons-container">
+    <button class="copy-button" id="copy-head">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" /><path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" /></svg>
+        <span>Zkopírovat kód hlavičky</span>
+    </button>
+    <button class="info-button" id="head-info">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" /></svg>
+        <span>Nápověda</span>
+    </button>
+</div>
+        
+        <h3>Kód pro vložení do těla stránky</h3>
+<div class="code-block" id="body-code"></div>
+<div class="buttons-container">
+    <button class="copy-button" id="copy-body">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" /><path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" /></svg>
+        <span>Zkopírovat kód těla</span>
+    </button>
+    <button class="info-button" id="body-info">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" /></svg>
+        <span>Nápověda</span>
+    </button>
+</div>
+        
+        <h3>JavaScript kód pro zachycení vybraného místa</h3>
+<div class="code-block" id="script-code"></div>
+<div class="buttons-container">
+    <button class="copy-button" id="copy-script">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" /><path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" /></svg>
+        <span>Zkopírovat JavaScript kód</span>
+    </button>
+    <button class="info-button" id="script-info">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" /></svg>
+        <span>Nápověda</span>
+    </button>
+</div>
+        
+        <p class="description">
+            <strong>Poznámka:</strong> 
+            Pro správné zobrazení widgetu na vašem webu musí být rodičovský element dostatečně široký (minimálně 320px) 
+            a vysoký (minimálně 550px). Pro další úpravy a nastavení se podívejte do 
+            <a href="https://www.ppl.cz" target="_blank">dokumentace PPL</a>.
+        </p>
+    </div>
+
+<div class="help-popup" id="head-help">
+    <div class="help-popup-content">
+        <button class="help-popup-close">&times;</button>
+        <h3 class="help-popup-title">Jak implementovat kód hlavičky</h3>
+        
+        <div class="help-content-block">
+            <h4 class="help-content-subtitle">Kam vložit kód hlavičky?</h4>
+            <p>Kód hlavičky vložte mezi tagy <code>&lt;head&gt;</code> a <code>&lt;/head&gt;</code> vaší HTML stránky. Tento kód načítá CSS styly a JavaScript potřebné pro správnou funkci widgetu.</p>
+            
+            <div class="example-structure">
+&lt;!DOCTYPE html&gt;
+&lt;html lang="cs"&gt;
+&lt;head&gt;
+    &lt;meta charset="UTF-8"&gt;
+    &lt;meta name="viewport" content="width=device-width, initial-scale=1.0"&gt;
+    &lt;title&gt;Váš e-shop - Výběr dopravy&lt;/title&gt;
+    
+    <span class="highlight">&lt;!-- Sem vložte kód hlavičky PPL widgetu --&gt;
+    &lt;link rel="stylesheet" href="https://www.ppl.cz/sources/map/main.css"&gt;
+    &lt;script type="text/javascript" src="https://www.ppl.cz/sources/map/main.js" async&gt;&lt;/script&gt;</span>
+    
+    &lt;!-- Další vaše styly a skripty --&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    ...
+</div>
+
+<div class="help-hint">
+                <strong>TIP:</strong> Kód hlavičky stačí vložit pouze jednou, i když máte na stránce více widgetů.
+            </div>
+        </div>
+        
+        <div class="help-content-block">
+            <h4 class="help-content-subtitle">Příklad implementace v redakčním systému</h4>
+            <p>Pokud používáte redakční systém (např. WordPress), obvykle můžete vložit kód hlavičky do nastavení:</p>
+            <ul>
+                <li><strong>WordPress:</strong> Vzhled &gt; Editor motivu &gt; header.php</li>
+                <li><strong>Shoptet:</strong> Administrace &gt; Vzhled a obsah &gt; HTML kód &gt; HTML kód v hlavičce</li>
+                <li><strong>PrestaShop:</strong> Vzhled &gt; Záhlaví</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div class="help-popup" id="body-help">
+    <div class="help-popup-content">
+        <button class="help-popup-close">&times;</button>
+        <h3 class="help-popup-title">Jak implementovat kód těla</h3>
+        
+        <div class="help-content-block">
+            <h4 class="help-content-subtitle">Kam vložit kód těla?</h4>
+            <p>Kód těla vložte na místo, kde chcete zobrazit PPL widget. Typicky to bývá v sekci pro výběr dopravy při pokladně e-shopu nebo na stránce s kontakty.</p>
+            
+            <div class="example-structure">
+&lt;!-- Příklad v košíku e-shopu --&gt;
+&lt;div class="shipping-options"&gt;
+    &lt;h3&gt;Vyberte způsob dopravy&lt;/h3&gt;
+    
+    &lt;div class="shipping-option"&gt;
+        &lt;input type="radio" id="ppl-parcelshop" name="shipping" value="ppl"&gt;
+        &lt;label for="ppl-parcelshop"&gt;PPL Výdejní místo&lt;/label&gt;
+    &lt;/div&gt;
+    
+    &lt;!-- Kontejner pro mapu s definovanou výškou --&gt;
+    &lt;div class="ppl-map-container" style="height: 600px; margin: 20px 0;"&gt;
+        <span class="highlight">&lt;!-- Sem vložte kód těla PPL widgetu --&gt;
+        &lt;div id="ppl-parcelshop-map" data-country="cz" data-countries="cz, sk" data-language="cs" data-mode="default"&gt;&lt;/div&gt;</span>
+    &lt;/div&gt;
+&lt;/div&gt;
+</div>
+            
+            <div class="help-hint">
+                <strong>DŮLEŽITÉ:</strong> Rodičovský element (div), do kterého vkládáte PPL widget, by měl mít definovanou výšku (minimálně 550px) a šířku (minimálně 320px) pro správné zobrazení mapy.
+            </div>
+        </div>
+        
+        <div class="help-content-block">
+            <h4 class="help-content-subtitle">Možnosti zobrazení</h4>
+            <p>Widget můžete zobrazit jako:</p>
+            <ul>
+                <li><strong>Přímo na stránce</strong> - jak je ukázáno výše</li>
+                <li><strong>V modálním okně</strong> - které se otevře po kliknutí na tlačítko</li>
+                <li><strong>Na samostatné stránce</strong> - například na stránce "Výdejní místa"</li>
+            </ul>
+            
+            <div class="help-hint">
+                <strong>TIP:</strong> Widget můžete skrýt a zobrazit podle potřeby pomocí JavaScriptu. Například když uživatel vybere "PPL dopravu", můžete zobrazit mapu s výdejními místy.
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="help-popup" id="script-help">
+    <div class="help-popup-content">
+        <button class="help-popup-close">&times;</button>
+        <h3 class="help-popup-title">Jak implementovat JavaScript kód</h3>
+        
+        <div class="help-content-block">
+            <h4 class="help-content-subtitle">Kam vložit JavaScript kód?</h4>
+            <p>JavaScript kód vložte na konec těla stránky těsně před uzavírací tag <code>&lt;/body&gt;</code>. Tento kód zachytává událost, když uživatel vybere výdejní místo na mapě.</p>
+            
+            <div class="example-structure">
+    &lt;!-- Obsah stránky --&gt;
+    
+    &lt;!-- Ostatní skripty --&gt;
+    <span class="highlight">&lt;!-- Sem vložte JavaScript kód pro zachycení vybraného místa --&gt;
+    &lt;script&gt;
+    window.addEventListener('message', function(event) {
+        if (event.data && event.data.event === 'pplPickupPointSelected') {
+            const selectedPoint = event.data.point;
+            console.log('Vybráno výdejní místo:', selectedPoint);
+            
+            // Zde můžete přidat vlastní kód pro zpracování vybraného místa
+            // Například:
+            // document.getElementById('shipping-pickup-id').value = selectedPoint.id;
+            // document.getElementById('shipping-pickup-name').value = selectedPoint.name;
+            // document.getElementById('shipping-pickup-address').value = selectedPoint.address;
+        }
+    });
+    &lt;/script&gt;</span>
+&lt;/body&gt;
+&lt;/html&gt;
+</div>
+            
+            <div class="help-hint">
+                <strong>POZNÁMKA:</strong> Tento kód je potřeba pouze pro widgety v režimu "default", kde chcete zachytit informace o vybraném výdejním místě. Pro režimy "static" nebo "catalog" tento kód nepotřebujete.
+            </div>
+        </div>
+        
+        <div class="help-content-block">
+            <h4 class="help-content-subtitle">Co obsahuje vybrané výdejní místo?</h4>
+            <p>Objekt <code>selectedPoint</code> obsahuje následující informace o vybraném výdejním místě:</p>
+            <ul>
+                <li><code>id</code> - unikátní identifikátor výdejního místa</li>
+                <li><code>name</code> - název výdejního místa</li>
+                <li><code>type</code> - typ místa (ParcelShop, ParcelBox, AlzaBox)</li>
+                <li><code>street</code> - ulice s číslem popisným</li>
+                <li><code>city</code> - město</li>
+                <li><code>zip</code> - PSČ</li>
+                <li><code>country</code> - země (cz, sk, pl, de)</li>
+                <li><code>latitude</code> - zeměpisná šířka</li>
+                <li><code>longitude</code> - zeměpisná délka</li>
+                <li>a další informace jako otevírací doba, služby, atd.</li>
+            </ul>
+            
+            <div class="help-hint">
+                <strong>TIP:</strong> Pro ladění si můžete zobrazit kompletní data výdejního místa pomocí <code>console.log(selectedPoint)</code> a prohlédnout si všechny dostupné informace.
+            </div>
+        </div>
+        
+        <div class="help-content-block">
+            <h4 class="help-content-subtitle">Příklad praktického použití</h4>
+            <div class="example-structure">
+&lt;script&gt;
+window.addEventListener('message', function(event) {
+    if (event.data && event.data.event === 'pplPickupPointSelected') {
+        const selectedPoint = event.data.point;
+        
+        // Uložení dat do skrytých polí formuláře
+        document.getElementById('pickup_id').value = selectedPoint.id;
+        document.getElementById('pickup_name').value = selectedPoint.name;
+        document.getElementById('pickup_address').value = 
+            selectedPoint.street + ', ' + selectedPoint.zip + ' ' + selectedPoint.city;
+        
+        // Zobrazení informace o vybraném místě uživateli
+        const infoContainer = document.getElementById('selected-point-info');
+        infoContainer.innerHTML = `
+            &lt;div class="selected-point"&gt;
+                &lt;h4&gt;Vybrané výdejní místo&lt;/h4&gt;
+                &lt;p&gt;&lt;strong&gt;${selectedPoint.name}&lt;/strong&gt;&lt;/p&gt;
+                &lt;p&gt;${selectedPoint.street}, ${selectedPoint.zip} ${selectedPoint.city}&lt;/p&gt;
+            &lt;/div&gt;
+        `;
+        
+        // Povolení tlačítka pro pokračování
+        document.getElementById('continue-button').disabled = false;
+    }
+});
+&lt;/script&gt;
+</div>
+        </div>
+    </div>
+</div>
+
+<!-- English help popups -->
+<div class="help-popup" id="head-help-en">
+    <div class="help-popup-content">
+        <button class="help-popup-close">&times;</button>
+        <h3 class="help-popup-title">How to implement the header code</h3>
+        
+        <div class="help-content-block">
+            <h4 class="help-content-subtitle">Where to insert the header code?</h4>
+            <p>Insert the header code between the <code>&lt;head&gt;</code> and <code>&lt;/head&gt;</code> tags of your HTML page. This code loads the CSS styles and JavaScript needed for the widget to function properly.</p>
+            
+            <div class="example-structure">
+&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
+&lt;head&gt;
+    &lt;meta charset="UTF-8"&gt;
+    &lt;meta name="viewport" content="width=device-width, initial-scale=1.0"&gt;
+    &lt;title&gt;Your e-shop - Shipping selection&lt;/title&gt;
+    
+    <span class="highlight">&lt;!-- Insert PPL widget header code here --&gt;
+    &lt;link rel="stylesheet" href="https://www.ppl.cz/sources/map/main.css"&gt;
+    &lt;script type="text/javascript" src="https://www.ppl.cz/sources/map/main.js" async&gt;&lt;/script&gt;</span>
+    
+    &lt;!-- Your other styles and scripts --&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    ...
+</div>
+
+<div class="help-hint">
+                <strong>TIP:</strong> The header code only needs to be inserted once, even if you have multiple widgets on the page.
+            </div>
+        </div>
+        
+        <div class="help-content-block">
+            <h4 class="help-content-subtitle">Example implementation in content management systems</h4>
+            <p>If you're using a content management system (e.g., WordPress), you can usually insert the header code in the settings:</p>
+            <ul>
+                <li><strong>WordPress:</strong> Appearance &gt; Theme Editor &gt; header.php</li>
+                <li><strong>Shoptet:</strong> Administration &gt; Appearance and content &gt; HTML code &gt; HTML code in header</li>
+                <li><strong>PrestaShop:</strong> Appearance &gt; Header</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div class="help-popup" id="body-help-en">
+    <div class="help-popup-content">
+        <button class="help-popup-close">&times;</button>
+        <h3 class="help-popup-title">How to implement the body code</h3>
+        
+        <div class="help-content-block">
+            <h4 class="help-content-subtitle">Where to insert the body code?</h4>
+            <p>Insert the body code at the location where you want to display the PPL widget. This is typically in the shipping selection section at the e-shop checkout or on the contact page.</p>
+            
+            <div class="example-structure">
+&lt;!-- Example in e-shop cart --&gt;
+&lt;div class="shipping-options"&gt;
+    &lt;h3&gt;Select shipping method&lt;/h3&gt;
+    
+    &lt;div class="shipping-option"&gt;
+        &lt;input type="radio" id="ppl-parcelshop" name="shipping" value="ppl"&gt;
+        &lt;label for="ppl-parcelshop"&gt;PPL Pickup point&lt;/label&gt;
+    &lt;/div&gt;
+    
+    &lt;!-- Container for map with defined height --&gt;
+    &lt;div class="ppl-map-container" style="height: 600px; margin: 20px 0;"&gt;
+        <span class="highlight">&lt;!-- Insert PPL widget body code here --&gt;
+        &lt;div id="ppl-parcelshop-map" data-country="cz" data-countries="cz, sk" data-language="en" data-mode="default"&gt;&lt;/div&gt;</span>
+    &lt;/div&gt;
+&lt;/div&gt;
+</div>
+            
+            <div class="help-hint">
+                <strong>IMPORTANT:</strong> The parent element (div) into which you place the PPL widget should have a defined height (minimum 550px) and width (minimum 320px) for proper map display.
+            </div>
+        </div>
+        
+        <div class="help-content-block">
+            <h4 class="help-content-subtitle">Display options</h4>
+            <p>You can display the widget as:</p>
+            <ul>
+                <li><strong>Directly on the page</strong> - as shown above</li>
+                <li><strong>In a modal window</strong> - which opens after clicking a button</li>
+                <li><strong>On a separate page</strong> - for example on a "Pickup points" page</li>
+            </ul>
+            
+            <div class="help-hint">
+                <strong>TIP:</strong> You can hide and show the widget as needed using JavaScript. For example, when a user selects "PPL delivery", you can display the map with pickup points.
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="help-popup" id="script-help-en">
+    <div class="help-popup-content">
+        <button class="help-popup-close">&times;</button>
+        <h3 class="help-popup-title">How to implement the JavaScript code</h3>
+        
+        <div class="help-content-block">
+            <h4 class="help-content-subtitle">Where to insert the JavaScript code?</h4>
+            <p>Insert the JavaScript code at the end of the page body just before the closing <code>&lt;/body&gt;</code> tag. This code captures the event when a user selects a pickup point on the map.</p>
+            
+            <div class="example-structure">
+    &lt;!-- Page content --&gt;
+    
+    &lt;!-- Other scripts --&gt;
+    <span class="highlight">&lt;!-- Insert JavaScript code for capturing the selected point here --&gt;
+    &lt;script&gt;
+    window.addEventListener('message', function(event) {
+        if (event.data && event.data.event === 'pplPickupPointSelected') {
+            const selectedPoint = event.data.point;
+            console.log('Selected pickup point:', selectedPoint);
+            
+            // Here you can add your own code for processing the selected point
+            // For example:
+            // document.getElementById('shipping-pickup-id').value = selectedPoint.id;
+            // document.getElementById('shipping-pickup-name').value = selectedPoint.name;
+            // document.getElementById('shipping-pickup-address').value = selectedPoint.address;
+        }
+    });
+    &lt;/script&gt;</span>
+&lt;/body&gt;
+&lt;/html&gt;
+</div>
+            
+            <div class="help-hint">
+                <strong>NOTE:</strong> This code is only needed for widgets in "default" mode, where you want to capture information about the selected pickup point. For "static" or "catalog" modes, you don't need this code.
+            </div>
+        </div>
+        
+        <div class="help-content-block">
+            <h4 class="help-content-subtitle">What does the selected pickup point contain?</h4>
+            <p>The <code>selectedPoint</code> object contains the following information about the selected pickup point:</p>
+            <ul>
+                <li><code>id</code> - unique identifier of the pickup point</li>
+                <li><code>name</code> - name of the pickup point</li>
+                <li><code>type</code> - type of location (ParcelShop, ParcelBox, AlzaBox)</li>
+                <li><code>street</code> - street with house number</li>
+                <li><code>city</code> - city</li>
+                <li><code>zip</code> - ZIP code</li>
+                <li><code>country</code> - country (cz, sk, pl, de)</li>
+                <li><code>latitude</code> - latitude</li>
+                <li><code>longitude</code> - longitude</li>
+                <li>and other information such as opening hours, services, etc.</li>
+            </ul>
+            
+            <div class="help-hint">
+                <strong>TIP:</strong> For debugging, you can display the complete data of the pickup point using <code>console.log(selectedPoint)</code> and view all available information.
+            </div>
+        </div>
+        
+        <div class="help-content-block">
+            <h4 class="help-content-subtitle">Example of practical use</h4>
+            <div class="example-structure">
+&lt;script&gt;
+window.addEventListener('message', function(event) {
+    if (event.data && event.data.event === 'pplPickupPointSelected') {
+        const selectedPoint = event.data.point;
+        
+        // Saving data to hidden form fields
+        document.getElementById('pickup_id').value = selectedPoint.id;
+        document.getElementById('pickup_name').value = selectedPoint.name;
+        document.getElementById('pickup_address').value = 
+            selectedPoint.street + ', ' + selectedPoint.zip + ' ' + selectedPoint.city;
+        
+        // Displaying information about the selected point to the user
+        const infoContainer = document.getElementById('selected-point-info');
+        infoContainer.innerHTML = `
+            &lt;div class="selected-point"&gt;
+                &lt;h4&gt;Selected pickup point&lt;/h4&gt;
+                &lt;p&gt;&lt;strong&gt;${selectedPoint.name}&lt;/strong&gt;&lt;/p&gt;
+                &lt;p&gt;${selectedPoint.street}, ${selectedPoint.zip} ${selectedPoint.city}&lt;/p&gt;
+            &lt;/div&gt;
+        `;
+        
+        // Enabling the continue button
+        document.getElementById('continue-button').disabled = false;
+    }
+});
+&lt;/script&gt;
+</div>
+        </div>
+    </div>
+</div>
+    
+    <div class="button-group">
+        <button class="prev" id="step5-prev">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd" /></svg>
+            <span>Změnit nastavení</span>
+        </button>
+        <div style="display: flex; gap: 10px;">
+            <button class="generate" id="download-code">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                <span>Stáhnout kód</span>
+            </button>
+            <button class="next" id="go-to-preview">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" /></svg>
+                <span>Zobrazit náhled</span>
+            </button>
+        </div>
+    </div>
+</div>
+<!-- Krok 6 -->
+<div class="wizard-content hidden" id="step6">
+    <div class="button-group" style="margin-top: 0; margin-bottom: 20px; justify-content: flex-start; gap: 10px;">
+        <button class="prev" id="step6-prev">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd" /></svg>
+            <span>Zpět</span>
+        </button>
+        <button class="next" id="step6-reload">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 110 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" /></svg>
+            <span>Obnovit náhled</span>
+        </button>
+    </div>
+    
+    <h2 class="step-title">Náhled widgetu</h2>
+    <p class="description">Zde můžete vidět, jak bude widget vypadat s vašimi nastaveními.</p>
+    
+    <div id="preview-container" style="width: 100%; height: 900px; border: 1px solid #ccc;">
+        <div class="spinner" id="preview-spinner"></div>
+        <!-- Widget bude načten sem -->
+    </div>
+</div>
+</div>
+
+<script>
+
+let headInfoBtn, bodyInfoBtn, scriptInfoBtn;
+    const translations = {
+    cs: {
+        // Hlavička a navigace
+        title: "PPL Widget Wizard",
+        step1: "1. Výběr typů výdejních míst",
+        step2: "2. Výběr zemí",
+        step3: "3. Výchozí země",
+        step4: "4. Typ mapy",
+        step5: "5. Vygenerovaný kód",
+        step6: "6. Náhled widgetu",
+        
+        // Krok 1
+        step1Title: "Vyberte typy výdejních míst, které chcete zobrazit",
+        step1Description: "Zvolte, která výdejní místa budou k dispozici ve vašem widgetu. Nezvolené typy budou pro zákazníky skryty.",
+        parcelshop: "ParcelShop - Výdejní místa PPL",
+        parcelbox: "ParcelBox - PPL boxy pro vyzvednutí zásilek",
+        alzabox: "AlzaBox - Boxy Alza pro vyzvednutí zásilek",
+        
+        // Krok 2
+        step2Title: "Vyberte země, které chcete ve widgetu zobrazit",
+        step2Description: "Zvolte, pro které země bude možné ve widgetu vybrat výdejní místo.",
+        czechRepublic: "Česká republika",
+        slovakia: "Slovensko",
+        poland: "Polsko",
+        germany: "Německo",
+        
+        // Krok 3
+        step3Title: "Vyberte výchozí zemi a jazyk pro zobrazení",
+        step3Description: "Zvolte, která země se má ve widgetu zobrazit jako první a jaká jazyková verze bude použita.",
+        languageTitle: "Vyberte jazyk widgetu",
+        languageDescription: "Zvolte jazykovou mutaci widgetu.",
+        czech: "Čeština",
+        english: "Angličtina",
+        
+        // Krok 4
+        step4Title: "Vyberte typ mapy",
+        step4Description: "Zvolte, jaký typ mapy chcete ve widgetu zobrazit a jak se bude chovat.",
+        mapDefault: "Default - Zobrazuje mapu se všemi funkcionalitami, s tlačítkem Vybrat výdejní místo, které předává data vybraného výdejního místa rodičovské aplikaci ve formě eventu.",
+        mapStatic: "Static - Zobrazuje statickou mapu s jediným zobrazeným bodem, který je dle dat z API nejblíže definovanému středu mapy. Definice atributů data-lat a data-lng určující střed mapy je v kombinaci s tímto módem velmi doporučeno.",
+        mapCatalog: "Catalog - Zobrazuje mapu se všemi funkcionalitami, mimo tlačítka Vybrat výdejní místo. Toto použití je vhodné pro uživatele, které chceme primárně směrovat na detaily výdejních míst nasazené na portálu PPL.",
+        coordinatesTitle: "Souřadnice pro statickou mapu",
+        coordinatesDescription: "Zadejte geografické souřadnice středu mapy. Pro typ Static je to důrazně doporučeno.",
+        latitude: "Zeměpisná šířka (lat):",
+        longitude: "Zeměpisná délka (lng):",
+	tooltipDefault: "Nejčastější volba pro e-shopy. Umožňuje zákazníkovi vybrat si preferované výdejní místo přímo v košíku.",
+	tooltipStatic: "Vhodné, pokud chcete zobrazit pouze jedno konkrétní místo (např. vaši pobočku) nebo nejbližší Parcelbox k adrese vaší firmy na kontaktní stránce. Vyžaduje zadání GPS souřadnic.",
+	tooltipCatalog: "Vhodné pro informační stránky, kde nechcete umožnit výběr místa, ale pouze zobrazit mapu se všemi dostupnými místy (např. stránky \"Kde nás najdete\").",
+        
+        // Krok 5
+        step5Title: "Vygenerovaný kód pro vložení na váš web",
+        step5Description: "Zkopírujte následující kód a vložte jej do svého eshopu pro zobrazení widgetu PPL výdejních míst s vašimi vlastními nastaveními.",
+        headCodeTitle: "Script pro vložení do hlavičky stránky",
+        bodyCodeTitle: "Kód pro vložení do těla stránky",
+        scriptCodeTitle: "JavaScript kód pro zachycení vybraného místa",
+        noteSizeTitle: "Poznámka:",
+        noteSizeText: "Pro správné zobrazení widgetu na vašem webu musí být rodičovský element dostatečně široký (minimálně 320px) a vysoký (minimálně 550px). Pro další úpravy a nastavení se podívejte do dokumentace PPL.",
+        helpButton: "Nápověda",
+	preview: "Zobrazit náhled",
+	
+
+        // Krok 6
+        step6Title: "Náhled widgetu",
+        step6Description: "Zde můžete vidět, jak bude widget vypadat s vašimi nastaveními.",
+        reloadPreview: "Obnovit náhled",
+        
+        // Tlačítka
+        continue: "Pokračovat",
+        back: "Zpět",
+        changeSettings: "Změnit nastavení",
+        download: "Stáhnout kód",
+        copyHead: "Zkopírovat kód hlavičky",
+        copyBody: "Zkopírovat kód těla",
+        copyScript: "Zkopírovat JavaScript kód",
+        copied: "Zkopírováno!",
+        
+        // Validační hlášky
+        selectAtLeastOnePoint: "Vyberte prosím alespoň jeden typ výdejního místa.",
+        selectAtLeastOneCountry: "Vyberte prosím alespoň jednu zemi.",
+        selectDefaultCountry: "Vyberte prosím výchozí zemi.",
+        enterCoordinates: "Pro statickou mapu zadejte prosím souřadnice zeměpisné šířky a délky.",
+        enterValidCoordinates: "Zadejte prosím platné souřadnice v číselném formátu."
+    },
+    en: {
+        // Header and navigation
+        title: "PPL Widget Wizard",
+        step1: "1. Select pickup point types",
+        step2: "2. Select countries",
+        step3: "3. Default country",
+        step4: "4. Map type",
+        step5: "5. Generated code",
+        step6: "6. Widget preview",
+        
+        // Step 1
+        step1Title: "Select pickup point types to display",
+        step1Description: "Choose which pickup points will be available in your widget. Non-selected types will be hidden from customers.",
+        parcelshop: "ParcelShop - PPL pickup points",
+        parcelbox: "ParcelBox - PPL boxes for package pickup",
+        alzabox: "AlzaBox - Alza boxes for package pickup",
+        
+        // Step 2
+        step2Title: "Select countries to display in the widget",
+        step2Description: "Choose for which countries it will be possible to select a pickup point in the widget.",
+        czechRepublic: "Czech Republic",
+        slovakia: "Slovakia",
+        poland: "Poland",
+        germany: "Germany",
+        
+        // Step 3
+        step3Title: "Select default country and display language",
+        step3Description: "Choose which country should be displayed first in the widget and which language version will be used.",
+        languageTitle: "Select widget language",
+        languageDescription: "Choose the language version of the widget.",
+        czech: "Czech",
+        english: "English",
+        
+        // Step 4
+        step4Title: "Select map type",
+        step4Description: "Choose which type of map you want to display in the widget and how it will behave.",
+        mapDefault: "Default - Displays a map with all functionalities, with a Select pickup point button that passes data of the selected pickup point to the parent application in the form of an event.",
+        mapStatic: "Static - Displays a static map with a single displayed point, which is according to API data closest to the defined map center. Definition of data-lat and data-lng attributes determining the map center is highly recommended in combination with this mode.",
+        mapCatalog: "Catalog - Displays a map with all functionalities, except for the Select pickup point button. This use is suitable for users whom we primarily want to direct to the details of pickup points deployed on the PPL portal.",
+        coordinatesTitle: "Coordinates for static map",
+        coordinatesDescription: "Enter geographic coordinates of the map center. For Static type, this is strongly recommended.",
+        latitude: "Latitude (lat):",
+        longitude: "Longitude (lng):",
+	tooltipDefault: "Most common choice for e-shops. Allows customers to select their preferred pickup point directly in the cart.",
+	tooltipStatic: "Suitable if you want to display only one specific location (e.g. your branch) or the nearest Parcelbox to your company's address on the contact page. Requires entering GPS coordinates.",
+	tooltipCatalog: "Suitable for information pages where you don't want to allow location selection, but only display a map with all available places (e.g. \"Where to find us\" pages).",
+        
+        // Step 5
+        step5Title: "Generated code for insertion on your website",
+        step5Description: "Copy the following code and paste it into your e-shop to display the PPL pickup points widget with your own settings.",
+        headCodeTitle: "Script to insert in the page header",
+        bodyCodeTitle: "Code to insert in the page body",
+        scriptCodeTitle: "JavaScript code to capture the selected point",
+        noteSizeTitle: "Note:",
+        noteSizeText: "For the correct display of the widget on your website, the parent element must be sufficiently wide (at least 320px) and high (at least 550px). For further adjustments and settings, see the PPL documentation.",
+        helpButton: "Help",
+	preview: "Show preview",
+
+        // Step 6
+        step6Title: "Widget preview",
+        step6Description: "Here you can see how the widget will look with your settings.",
+        reloadPreview: "Reload preview",
+        
+        // Buttons
+        continue: "Continue",
+        back: "Back",
+        changeSettings: "Change settings",
+        download: "Download code",
+        copyHead: "Copy header code",
+        copyBody: "Copy body code",
+        copyScript: "Copy JavaScript code",
+        copied: "Copied!",
+        
+        // Validation messages
+        selectAtLeastOnePoint: "Please select at least one pickup point type.",
+        selectAtLeastOneCountry: "Please select at least one country.",
+        selectDefaultCountry: "Please select a default country.",
+        enterCoordinates: "For static map, please enter the coordinates of latitude and longitude.",
+        enterValidCoordinates: "Please enter valid coordinates in numerical format."
+    }
+};
+
+// Výchozí jazyk
+let currentLanguage = 'cs';
+let selectedDefaultCountry = null;
+
+// Funkce pro generování kódu
+function generateCode() {
+    // Získání vybraných hodnot
+    const parcelshop = document.getElementById('parcelshop').checked;
+    const parcelbox = document.getElementById('parcelbox').checked;
+    const alzabox = document.getElementById('alzabox').checked;
+    
+    const czSelected = document.getElementById('cz').checked;
+    const skSelected = document.getElementById('sk').checked;
+    const plSelected = document.getElementById('pl').checked;
+    const deSelected = document.getElementById('de').checked;
+    
+    // Vytvoření seznamu skrytých výdejních míst
+    let hiddenPoints = [];
+    if (!parcelshop) hiddenPoints.push('ParcelShop');
+    if (!parcelbox) hiddenPoints.push('ParcelBox');
+    if (!alzabox) hiddenPoints.push('AlzaBox');
+    
+    // Vytvoření seznamu zemí
+    let countries = [];
+    if (czSelected) countries.push('cz');
+    if (skSelected) countries.push('sk');
+    if (plSelected) countries.push('pl');
+    if (deSelected) countries.push('de');
+    
+    // Získání vybrané výchozí země
+    const defaultCountry = document.querySelector('input[name="default-country"]:checked').value;
+    
+    // Získání vybraného jazyka
+    const language = document.querySelector('input[name="language"]:checked').value;
+    
+    // Získání typu mapy
+    const mapType = document.querySelector('input[name="map-type"]:checked').value;
+    
+    // Generování kódu pro hlavičku
+    const headCode = `<!-- PPL Widget skripty -->
+<link rel="stylesheet" href="https://www.ppl.cz/sources/map/main.css">
+<script type="text/javascript" src="https://www.ppl.cz/sources/map/main.js" async><\/script>`;
+    
+    // Generování kódu pro tělo
+    let bodyAttributes = '';
+    
+    // Přidání atributů pro skrytá výdejní místa
+    if (hiddenPoints.length > 0) {
+        bodyAttributes += ` data-hiddenpoints="${hiddenPoints.join(', ')}"`;
+    }
+    
+    // Přidání atributů pro výchozí zemi a seznam zemí
+    bodyAttributes += ` data-country="${defaultCountry}"`;
+    bodyAttributes += ` data-countries="${countries.join(', ')}"`;
+    
+    // Přidání atributu pro jazyk
+    bodyAttributes += ` data-language="${language}"`;
+    
+    // Přidání atributu pro typ mapy
+    bodyAttributes += ` data-mode="${mapType}"`;
+    
+    // Přidání atributů pro souřadnice, pokud je vybrána statická mapa
+    if (mapType === 'static') {
+        const lat = document.getElementById('map-lat').value.trim();
+        const lng = document.getElementById('map-lng').value.trim();
+        bodyAttributes += ` data-lat="${lat}" data-lng="${lng}"`;
+    }
+    
+    const bodyCode = `<!-- PPL Widget element -->
+<div id="ppl-parcelshop-map"${bodyAttributes}></div>`;
+    
+    // Generování JavaScript kódu pro zachycení výběru
+    // Pokud je typ mapy 'catalog' nebo 'static', není potřeba kód pro zpracování výběru
+    let scriptCode = '';
+    if (mapType === 'default') {
+        scriptCode = `<!-- JavaScript kód pro zpracování vybraného místa -->
+<script>
+window.addEventListener('message', function(event) {
+    if (event.data && event.data.event === 'pplPickupPointSelected') {
+        const selectedPoint = event.data.point;
+        console.log('Vybráno výdejní místo:', selectedPoint);
+        
+        // Zde můžete přidat vlastní kód pro zpracování vybraného místa
+        // Například:
+        // document.getElementById('shipping-pickup-id').value = selectedPoint.id;
+        // document.getElementById('shipping-pickup-name').value = selectedPoint.name;
+        // document.getElementById('shipping-pickup-address').value = selectedPoint.address;
+    }
+});
+<\/script>`;
+    } else {
+        scriptCode = `<!-- JavaScript kód pro zpracování vybraného místa -->
+<script>
+// Pro vybraný typ mapy "${mapType}" není potřeba kód pro zpracování výběru výdejního místa.
+// Tento typ mapy ${mapType === 'static' ? 'zobrazuje pouze statický bod' : 'neslouží k výběru výdejního místa'}.
+<\/script>`;
+    }
+    
+    // Vložení kódu do správných elementů
+    document.getElementById('head-code').textContent = headCode;
+    document.getElementById('body-code').textContent = bodyCode;
+    document.getElementById('script-code').textContent = scriptCode;
+}
+
+// Pomocné funkce pro validační zprávy
+function showValidationMessage(stepId, messageKey) {
+    const validationMsg = document.getElementById(`${stepId}-validation`);
+    if (validationMsg) {
+        validationMsg.textContent = translations[currentLanguage][messageKey];
+        validationMsg.classList.add('active');
+    }
+}
+
+function showCountryValidationMessage(messageKey) {
+    const validationMsg = document.getElementById('step3-validation-country');
+    if (validationMsg) {
+        validationMsg.textContent = translations[currentLanguage][messageKey];
+        validationMsg.classList.add('active');
+    }
+}
+
+function showCoordsValidationMessage(messageKey) {
+    const validationMsg = document.getElementById('step4-validation-coords');
+    if (validationMsg) {
+        validationMsg.textContent = translations[currentLanguage][messageKey];
+        validationMsg.classList.add('active');
+    }
+}
+
+// Funkce pro načtení náhledu widgetu
+function loadPreview() {
+    // Vyčistíme kontejner
+    const previewContainer = document.getElementById('preview-container');
+    const spinner = document.getElementById('preview-spinner');
+    
+    previewContainer.innerHTML = '';
+    spinner.classList.add('active');
+    previewContainer.appendChild(spinner);
+    
+    // Získání hodnot
+    const parcelshop = document.getElementById('parcelshop').checked;
+    const parcelbox = document.getElementById('parcelbox').checked;
+    const alzabox = document.getElementById('alzabox').checked;
+    
+    // Vytvoření seznamu skrytých výdejních míst
+    let hiddenPoints = [];
+    if (!parcelshop) hiddenPoints.push('ParcelShop');
+    if (!parcelbox) hiddenPoints.push('ParcelBox');
+    if (!alzabox) hiddenPoints.push('AlzaBox');
+    
+    // Získání vybrané výchozí země
+    const defaultCountry = document.querySelector('input[name="default-country"]:checked').value;
+    
+    // Vytvoření seznamu zemí
+    let countries = [];
+    if (document.getElementById('cz').checked) countries.push('cz');
+    if (document.getElementById('sk').checked) countries.push('sk');
+    if (document.getElementById('pl').checked) countries.push('pl');
+    if (document.getElementById('de').checked) countries.push('de');
+    
+    // Získání vybraného jazyka
+    const language = document.querySelector('input[name="language"]:checked').value;
+    
+    // Získání typu mapy
+    const mapType = document.querySelector('input[name="map-type"]:checked').value;
+    
+    // Vytvoření widgetu
+    const widgetElement = document.createElement('div');
+    widgetElement.id = 'ppl-parcelshop-map';
+    
+    // Přidání atributů
+    if (hiddenPoints.length > 0) {
+        widgetElement.setAttribute('data-hiddenpoints', hiddenPoints.join(', '));
+    }
+    
+    widgetElement.setAttribute('data-country', defaultCountry);
+    
+    widgetElement.setAttribute('data-countries', countries.join(', '));
+    
+    widgetElement.setAttribute('data-language', language);
+    widgetElement.setAttribute('data-mode', mapType);
+    
+    // Přidání souřadnic pro statickou mapu
+    if (mapType === 'static') {
+        const lat = document.getElementById('map-lat').value.trim();
+        const lng = document.getElementById('map-lng').value.trim();
+        if (lat && lng) {
+            widgetElement.setAttribute('data-lat', lat);
+            widgetElement.setAttribute('data-lng', lng);
+        }
+    }
+    
+    // Vložení do náhledu
+    previewContainer.appendChild(widgetElement);
+    
+    // Načtení stylů pro widget
+    if (!document.getElementById('ppl-widget-css')) {
+        const cssLink = document.createElement('link');
+        cssLink.id = 'ppl-widget-css';
+        cssLink.rel = 'stylesheet';
+        cssLink.href = 'https://www.ppl.cz/sources/map/main.css';
+        document.head.appendChild(cssLink);
+    }
+    
+    // Odstranění předchozího skriptu, pokud existuje
+    const oldScript = document.getElementById('ppl-widget-js');
+    if (oldScript) {
+        oldScript.remove();
+    }
+    
+    // Přidání nového skriptu
+    const jsScript = document.createElement('script');
+    jsScript.id = 'ppl-widget-js';
+    jsScript.type = 'text/javascript';
+    jsScript.src = 'https://www.ppl.cz/sources/map/main.js';
+    jsScript.async = true;
+    
+    // Handler pro načtení skriptu
+    jsScript.onload = function() {
+        spinner.classList.remove('active');
+        setTimeout(() => {
+            if (window.PPL && typeof window.PPL.initMap === 'function') {
+                console.log("Attempting to call window.PPL.initMap()");
+                try {
+                    window.PPL.initMap();
+                    console.log("window.PPL.initMap() called successfully.");
+                } catch (e) {
+                    console.error("Error calling window.PPL.initMap():", e);
+                }
+            } else {
+                console.warn("window.PPL or window.PPL.initMap not found after script load.");
+            }
+        }, 500); // Můžeš zkusit i delší čas, např. 1500
+    };
+    
+    jsScript.onerror = function() {
+        spinner.classList.remove('active');
+        previewContainer.innerHTML = '<p style="text-align: center; padding: 50px; color: red;">Chyba při načítání skriptu PPL widgetu.</p>';
+    };
+    
+    document.body.appendChild(jsScript);
+}
+    
+    
+// Funkce pro přepínání jazyka
+function setLanguage(lang) {
+    currentLanguage = lang;
+    
+    // Aktualizace tlačítek přepínače
+        document.getElementById('lang-switch-cs').classList.toggle('active', lang === 'cs');
+        document.getElementById('lang-switch-en').classList.toggle('active', lang === 'en');
+
+        // Aktualizace titulku stránky
+        document.querySelector('.wizard-header h1').textContent = translations[lang].title;
+
+        // Aktualizace kroků
+        document.getElementById('step1-indicator').textContent = translations[lang].step1;
+        document.getElementById('step2-indicator').textContent = translations[lang].step2;
+        document.getElementById('step3-indicator').textContent = translations[lang].step3;
+        document.getElementById('step4-indicator').textContent = translations[lang].step4;
+        document.getElementById('step5-indicator').textContent = translations[lang].step5;
+        document.getElementById('step6-indicator').textContent = translations[lang].step6;
+
+        // Krok 1
+        document.querySelector('#step1 .step-title').textContent = translations[lang].step1Title;
+        document.querySelector('#step1 .description').textContent = translations[lang].step1Description;
+        document.querySelector('label[for="parcelshop"]').textContent = translations[lang].parcelshop;
+        document.querySelector('label[for="parcelbox"]').textContent = translations[lang].parcelbox;
+        document.querySelector('label[for="alzabox"]').textContent = translations[lang].alzabox;
+        document.querySelector('#step1-next span').textContent = translations[lang].continue;
+    
+        // Krok 2
+        document.querySelector('#step2 .step-title').textContent = translations[lang].step2Title;
+        document.querySelector('#step2 .description').textContent = translations[lang].step2Description;
+        document.querySelector('label[for="cz"]').textContent = translations[lang].czechRepublic;
+        document.querySelector('label[for="sk"]').textContent = translations[lang].slovakia;
+        document.querySelector('label[for="pl"]').textContent = translations[lang].poland;
+        document.querySelector('label[for="de"]').textContent = translations[lang].germany;
+        document.querySelector('#step2-prev span').textContent = translations[lang].back;
+        document.querySelector('#step2-next span').textContent = translations[lang].continue;
+
+        // Krok 3
+        document.querySelector('#step3 .step-title').textContent = translations[lang].step3Title;
+        document.querySelector('#step3 .description').textContent = translations[lang].step3Description;
+        const step3Titles = document.querySelectorAll('#step3 h3.step-title');
+        if (step3Titles.length >= 2) {
+            step3Titles[1].textContent = translations[lang].languageTitle;
+        }
+        const step3Descriptions = document.querySelectorAll('#step3 .description');
+        if (step3Descriptions.length >= 2) {
+            step3Descriptions[1].textContent = translations[lang].languageDescription;
+        }
+        document.querySelector('label[for="lang-cs"]').textContent = translations[lang].czech;
+        document.querySelector('label[for="lang-en"]').textContent = translations[lang].english;
+        document.querySelector('#step3-prev span').textContent = translations[lang].back;
+        document.querySelector('#step3-next span').textContent = translations[lang].continue;
+
+    
+     // Krok 4
+        document.querySelector('#step4 .step-title').textContent = translations[lang].step4Title;
+        document.querySelector('#step4 .description').textContent = translations[lang].step4Description;
+        // Nastavení html v labelu pro zachování tagu <strong>
+        const mapDefaultLabel = document.querySelector('label[for="map-default"]');
+        const mapStaticLabel = document.querySelector('label[for="map-static"]');
+        const mapCatalogLabel = document.querySelector('label[for="map-catalog"]');
+
+        if (mapDefaultLabel) {
+            mapDefaultLabel.innerHTML = `<strong>Default</strong> - ${translations[lang].mapDefault.substring(10)}`;
+        }
+        if (mapStaticLabel) {
+            mapStaticLabel.innerHTML = `<strong>Static</strong> - ${translations[lang].mapStatic.substring(9)}`;
+        }
+        if (mapCatalogLabel) {
+            mapCatalogLabel.innerHTML = `<strong>Catalog</strong> - ${translations[lang].mapCatalog.substring(10)}`;
+        }
+
+        const coordinatesTitle = document.querySelector('#static-map-coordinates .step-title');
+        if (coordinatesTitle) {
+            coordinatesTitle.textContent = translations[lang].coordinatesTitle;
+        }
+        const coordinatesDescription = document.querySelector('#static-map-coordinates .description');
+        if (coordinatesDescription) {
+            coordinatesDescription.textContent = translations[lang].coordinatesDescription;
+        }
+        document.querySelector('label[for="map-lat"]').textContent = translations[lang].latitude;
+        document.querySelector('label[for="map-lng"]').textContent = translations[lang].longitude;
+        document.querySelector('#step4-prev span').textContent = translations[lang].back;
+        document.querySelector('#step4-next span').textContent = translations[lang].continue;
+	const tooltips = document.querySelectorAll('#step4 .tooltip-text');
+    if (tooltips.length >= 3) {
+    	tooltips[0].textContent = translations[lang].tooltipDefault;
+        tooltips[1].textContent = translations[lang].tooltipStatic;
+        tooltips[2].textContent = translations[lang].tooltipCatalog;
+    }
+    
+    // Krok 5
+        document.querySelector('#step5 .step-title').textContent = translations[lang].step5Title;
+        document.querySelector('#step5 .description').textContent = translations[lang].step5Description;
+        document.querySelectorAll('#step5 .result-container h3')[0].textContent = translations[lang].headCodeTitle;
+        document.querySelectorAll('#step5 .result-container h3')[1].textContent = translations[lang].bodyCodeTitle;
+        document.querySelectorAll('#step5 .result-container h3')[2].textContent = translations[lang].scriptCodeTitle;
+        const noteTitle = document.querySelector('#step5 .result-container .description strong');
+        if (noteTitle) {
+            noteTitle.textContent = translations[lang].noteSizeTitle;
+        }
+        const noteText = document.querySelector('#step5 .result-container .description');
+        if (noteText) {
+            noteText.innerHTML = `<strong>${translations[lang].noteSizeTitle}</strong> ${translations[lang].noteSizeText}`;
+        }
+        document.querySelector('#step5-prev span').textContent = translations[lang].changeSettings;
+        document.querySelector('#download-code span').textContent = translations[lang].download;
+        document.querySelector('#go-to-preview span').textContent = translations[lang].preview;;
+        document.querySelector('#copy-head span').textContent = translations[lang].copyHead;
+        document.querySelector('#copy-body span').textContent = translations[lang].copyBody;
+        document.querySelector('#copy-script span').textContent = translations[lang].copyScript;
+
+    
+    // Krok 6
+document.querySelector('#step6 .step-title').textContent = translations[lang].step6Title;
+document.querySelector('#step6 .description').textContent = translations[lang].step6Description;
+document.querySelector('#step6-prev span').textContent = translations[lang].back;
+document.querySelector('#step6-reload span').textContent = translations[lang].reloadPreview;
+
+// Aktualizace výchozí země v kroku 3
+updateDefaultCountryLabels();
+
+// Aktualizace textů tlačítek nápovědy
+document.querySelectorAll('.info-button span').forEach(span => {
+    span.textContent = translations[lang].helpButton;
+});
+
+// Nastavíme ID nápověd podle aktuálního jazyka
+if (lang === 'cs') {
+    if(headInfoBtn) headInfoBtn.setAttribute('data-target', 'head-help');
+    if(bodyInfoBtn) bodyInfoBtn.setAttribute('data-target', 'body-help');
+    if(scriptInfoBtn) scriptInfoBtn.setAttribute('data-target', 'script-help');
+} else {
+    if(headInfoBtn) headInfoBtn.setAttribute('data-target', 'head-help-en');
+    if(bodyInfoBtn) bodyInfoBtn.setAttribute('data-target', 'body-help-en');
+    if(scriptInfoBtn) scriptInfoBtn.setAttribute('data-target', 'script-help-en');
+}
+}
+
+// Funkce pro aktualizaci popisků výchozí země
+function updateDefaultCountryLabels() {
+    const countryNames = {
+        'cs': {
+            'cz': 'Česká republika',
+            'sk': 'Slovensko',
+            'pl': 'Polsko',
+            'de': 'Německo'
+        },
+        'en': {
+            'cz': 'Czech Republic',
+            'sk': 'Slovakia',
+            'pl': 'Poland',
+            'de': 'Germany'
+        }
+    };
+    
+    const defaultCountryRadios = document.querySelectorAll('input[name="default-country"]');
+    defaultCountryRadios.forEach(radio => {
+        const countryCode = radio.value;
+        const label = document.querySelector(`label[for="default-country-${countryCode}"]`);
+        if (label) {
+            label.textContent = countryNames[currentLanguage][countryCode];
+        }
+    });
+}
+
+function updateStepIndicators(activeStepId) {
+    const activeStepNum = parseInt(activeStepId.replace('step', ''));
+    
+    document.querySelectorAll('.wizard-step').forEach(indicator => {
+        const stepNum = parseInt(indicator.dataset.step);
+        
+        // Reset všech stavů
+        indicator.classList.remove('active', 'completed');
+        
+        // Aktuální krok
+        if (stepNum === activeStepNum) {
+            indicator.classList.add('active');
+        }
+        // Dokončené kroky
+        else if (stepNum < activeStepNum) {
+            indicator.classList.add('completed');
+        }
+    });
+}
+
+function showStep(stepId) {
+    // Nejprve snížíme opacity aktuálního kroku
+    const currentActiveStep = document.querySelector('.wizard-content:not(.hidden)');
+    if (currentActiveStep) {
+        currentActiveStep.style.opacity = "0";
+        
+        // Počkáme na dokončení fade-out animace
+        setTimeout(() => {
+            // Skryjeme všechny kroky
+            const steps = document.querySelectorAll('.wizard-content');
+            steps.forEach(step => {
+                step.classList.add('hidden');
+            });
+            
+            // Zobrazíme nový krok
+            const nextStep = document.getElementById(stepId);
+            if (nextStep) {
+                nextStep.classList.remove('hidden');
+                
+                // Krátká prodleva pro správný repaint a pak nastavíme opacity na 1
+                setTimeout(() => {
+                    nextStep.style.opacity = "1";
+                }, 50);
+            }
+            
+            // Aktualizace indikátorů a další logika
+            updateStepIndicators(stepId);
+            
+            // Zavolání případné inicializační logiky pro daný krok
+            const initFunction = window[`init_${stepId}`];
+            if (typeof initFunction === 'function') {
+                initFunction();
+            }
+            
+            // Znovu připojit správné eventy pro aktuální krok
+            attachStepHandlers(stepId);
+        }, 300); // Doba trvání fade-out animace
+    } else {
+        // Pro první zobrazení (když žádný krok není aktivní)
+        const steps = document.querySelectorAll('.wizard-content');
+        steps.forEach(step => {
+            step.classList.add('hidden');
+        });
+        
+        const nextStep = document.getElementById(stepId);
+        if (nextStep) {
+            nextStep.classList.remove('hidden');
+            setTimeout(() => {
+                nextStep.style.opacity = "1";
+            }, 50);
+        }
+        
+        updateStepIndicators(stepId);
+        
+        const initFunction = window[`init_${stepId}`];
+        if (typeof initFunction === 'function') {
+            initFunction();
+        }
+        
+        attachStepHandlers(stepId);
+    }
+}
+
+ function attachStepHandlers(stepId) {
+        
+     if (stepId === 'step1') {
+         const step1NextBtn = document.getElementById('step1-next');
+         if (step1NextBtn) { 
+             const newBtn = step1NextBtn.cloneNode(true);
+             step1NextBtn.parentNode.replaceChild(newBtn, step1NextBtn);
+
+               newBtn.addEventListener('click', function () {
+                 // Zkontrolujeme, jestli je něco zaškrtnuto
+                 const isChecked = document.getElementById('parcelshop').checked ||
+                                   document.getElementById('parcelbox').checked ||
+                                   document.getElementById('alzabox').checked;
+		 const checkboxes = document.querySelectorAll('#step1 input[type="checkbox"]');
+                 const step1Validation = document.getElementById('step1-validation'); 
+
+checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            // Pokud je jakýkoliv checkbox zaškrtnutý, skryj validační hlášku
+            const anyChecked = Array.from(checkboxes).some(cb => cb.checked);
+            if (anyChecked) {
+                step1Validation.classList.remove('active');
+            }
+        });
+    });
+
+            if (!isChecked) { 
+                   if (translations && translations[currentLanguage]) {
+                        step1Validation.textContent = translations[currentLanguage].selectAtLeastOnePoint;
+                     } else {
+                         step1Validation.textContent = "Vyberte prosím alespoň jeden typ výdejního místa."; 
+                     }
+                     step1Validation.classList.add('active'); // Zviditelníme varování
+                     return; 
+                 }
+                 step1Validation.classList.remove('active');
+                 showStep('step2');
+             });
+         }
+     }
+
+     if (stepId === 'step2') {
+         const step2NextBtn = document.getElementById('step2-next');
+         const step2PrevBtn = document.getElementById('step2-prev');
+
+     if (step2NextBtn) {
+            const newNextBtn = step2NextBtn.cloneNode(true);
+            step2NextBtn.parentNode.replaceChild(newNextBtn, step2NextBtn);
+            // Připojíme "Pokračovat"
+            newNextBtn.addEventListener('click', function () {
+                const checkboxes = document.querySelectorAll('#step2 input[type="checkbox"]');
+                const anyChecked = Array.from(checkboxes).some(checkbox => checkbox.checked);
+                const step2Validation = document.getElementById('step2-validation');
+
+ 	checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+	const anyChecked = Array.from(checkboxes).some(cb => cb.checked);
+            if (anyChecked) {
+                step2Validation.classList.remove('active');
+            }
+        });
+    });
+
+     if (!anyChecked) { // Pokud není žádná země zaškrtnutá
+                     if (translations && translations[currentLanguage]) {
+                        step2Validation.textContent = translations[currentLanguage].selectAtLeastOneCountry;
+                     } else {
+                        step2Validation.textContent = "Vyberte prosím alespoň jednu zemi."; // Kdyby překlad selhal
+                     }
+                    step2Validation.classList.add('active');
+                    return;
+                }
+
+  // Schováme varování
+                step2Validation.classList.remove('active');
+                // Připravíme další krok
+                generateDefaultCountryOptions();
+                // Jdeme do kroku 3
+                showStep('step3');
+            });
+         }
+
+  if (step2PrevBtn) {
+             const newPrevBtn = step2PrevBtn.cloneNode(true);
+             step2PrevBtn.parentNode.replaceChild(newPrevBtn, step2PrevBtn);
+             // Připojíme "Zpět"
+             newPrevBtn.addEventListener('click', function () {
+                 // Jdeme do kroku 1
+                 showStep('step1');
+             });
+         }
+     }
+
+  if (stepId === 'step3') {
+         const step3NextBtn = document.getElementById('step3-next');
+         const step3PrevBtn = document.getElementById('step3-prev');
+
+         if (step3NextBtn) {
+             const newNextBtn = step3NextBtn.cloneNode(true);
+             step3NextBtn.parentNode.replaceChild(newNextBtn, step3NextBtn);
+             // Připojíme "Pokračovat"
+             newNextBtn.addEventListener('click', function () {
+                 const selected = document.querySelector('input[name="default-country"]:checked');
+                 const step3ValidationCountry = document.getElementById('step3-validation-country');
+                 if (!selected) { // Pokud není vybraná výchozí země
+                     if (translations && translations[currentLanguage]) {
+                         step3ValidationCountry.textContent = translations[currentLanguage].selectDefaultCountry;
+                     } else {
+                         step3ValidationCountry.textContent = "Vyberte prosím výchozí zemi."; // Kdyby překlad selhal
+                     }
+                     step3ValidationCountry.classList.add('active');
+                     return;
+                 }
+                 // Schováme varování
+                 step3ValidationCountry.classList.remove('active');
+                 // Jdeme do kroku 4
+                 showStep('step4');
+             });
+         }
+
+      if (step3PrevBtn) {
+              const newPrevBtn = step3PrevBtn.cloneNode(true);
+              step3PrevBtn.parentNode.replaceChild(newPrevBtn, step3PrevBtn);
+              // Připojíme "Zpět"
+              newPrevBtn.addEventListener('click', function () {
+                  // Jdeme do kroku 2
+                  showStep('step2');
+              });
+          }
+      }
+
+if (stepId === 'step4') {
+          const step4NextBtn = document.getElementById('step4-next');
+          const step4PrevBtn = document.getElementById('step4-prev');
+
+          if (step4NextBtn) {
+              const newNextBtn = step4NextBtn.cloneNode(true);
+              step4NextBtn.parentNode.replaceChild(newNextBtn, step4NextBtn);
+              // Připojíme "Pokračovat"
+              newNextBtn.addEventListener('click', function () {
+                  const mapType = document.querySelector('input[name="map-type"]:checked').value;
+		  const mapLatInput = document.getElementById('map-lat');
+    		  const mapLngInput = document.getElementById('map-lng');
+                  const step4ValidationCoords = document.getElementById('step4-validation-coords');
+
+function checkCoordinates() {
+        const lat = mapLatInput.value.trim();
+        const lng = mapLngInput.value.trim();
+        const mapType = document.querySelector('input[name="map-type"]:checked').value;
+        
+        if (mapType === 'static' && lat && lng && !isNaN(parseFloat(lat)) && !isNaN(parseFloat(lng))) {
+            step4ValidationCoords.classList.remove('active');
+        }
+    }
+
+mapLatInput.addEventListener('input', checkCoordinates);
+    mapLngInput.addEventListener('input', checkCoordinates);
+
+                  if (mapType === 'static') { // Pokud je mapa statická, zkontrolujeme souřadnice
+                      const lat = document.getElementById('map-lat').value.trim();
+                      const lng = document.getElementById('map-lng').value.trim();
+
+                      if (!lat || !lng) { // Pokud chybí
+                          if (translations && translations[currentLanguage]) {
+                             step4ValidationCoords.textContent = translations[currentLanguage].enterCoordinates;
+                          } else {
+                              step4ValidationCoords.textContent = "Pro statickou mapu zadejte prosím souřadnice."; // Kdyby překlad selhal
+                          }
+                          step4ValidationCoords.classList.add('active');
+                          return;
+                      }
+                      // Pokud nejsou čísla
+                      if (isNaN(parseFloat(lat)) || isNaN(parseFloat(lng))) {
+                           if (translations && translations[currentLanguage]) {
+                              step4ValidationCoords.textContent = translations[currentLanguage].enterValidCoordinates;
+                           } else {
+                               step4ValidationCoords.textContent = "Zadejte prosím platné souřadnice v číselném formátu."; // Kdyby překlad selhal
+                           }
+                          step4ValidationCoords.classList.add('active');
+                          return;
+                      }
+                  }
+                  // Schováme varování
+                  step4ValidationCoords.classList.remove('active');
+                  // Připravíme kód
+                  generateCode();
+                  // Jdeme do kroku 5
+                  showStep('step5');
+              });
+          }
+           if (step4PrevBtn) {
+               const newPrevBtn = step4PrevBtn.cloneNode(true);
+               step4PrevBtn.parentNode.replaceChild(newPrevBtn, step4PrevBtn);
+               // Připojíme "Zpět"
+               newPrevBtn.addEventListener('click', function () {
+                   // Jdeme do kroku 3
+                   showStep('step3');
+               });
+           }
+      }
+
+if (stepId === 'step5') {
+    const step5PrevBtn = document.getElementById('step5-prev');
+    
+    if (step5PrevBtn) {
+        const newPrevBtn = step5PrevBtn.cloneNode(true);
+        step5PrevBtn.parentNode.replaceChild(newPrevBtn, step5PrevBtn);
+        
+          newPrevBtn.addEventListener('click', function () {
+         showStep('step1');
+        });
+    }
+}
+
+
+     // --- Tlačítka v kroku 6 (Náhled) ---
+      // Tyhle tlačítka (Zpět, Obnovit) mají připojení níže a fungují jinak,
+      // takže tady pro krok 6 nic nepřidáváme.
+ }
+
+// Funkce pro generování voleb výchozí země
+function generateDefaultCountryOptions() {
+    const defaultCountryContainer = document.getElementById('default-country-container');
+    defaultCountryContainer.innerHTML = ''; // Vyčištění kontejneru
+    
+    const countryNames = {
+        'cz': 'Česká republika',
+        'sk': 'Slovensko',
+        'pl': 'Polsko',
+        'de': 'Německo'
+    };
+    
+    let firstCountry = null;
+    
+    // Vytvoření radio buttonů pro každou vybranou zemi
+    if (document.getElementById('cz').checked) {
+        createDefaultCountryOption('cz', countryNames['cz'], defaultCountryContainer);
+        if (!firstCountry) firstCountry = 'cz';
+    }
+    
+    if (document.getElementById('sk').checked) {
+        createDefaultCountryOption('sk', countryNames['sk'], defaultCountryContainer);
+        if (!firstCountry) firstCountry = 'sk';
+    }
+    
+    if (document.getElementById('pl').checked) {
+        createDefaultCountryOption('pl', countryNames['pl'], defaultCountryContainer);
+        if (!firstCountry) firstCountry = 'pl';
+    }
+    
+    if (document.getElementById('de').checked) {
+        createDefaultCountryOption('de', countryNames['de'], defaultCountryContainer);
+        if (!firstCountry) firstCountry = 'de';
+    }
+    
+    // Automaticky vybrat první zemi jako výchozí
+    if (firstCountry) {
+        document.getElementById('default-country-' + firstCountry).checked = true;
+    }
+}
+
+// Funkce pro vytvoření jedné volby výchozí země
+function createDefaultCountryOption(code, name, container) {
+    const item = document.createElement('div');
+    item.className = 'checkbox-item';
+    
+    const input = document.createElement('input');
+    input.type = 'radio';
+    input.name = 'default-country';
+    input.id = 'default-country-' + code;
+    input.value = code;
+    
+    const label = document.createElement('label');
+    label.htmlFor = 'default-country-' + code;
+    
+    // Použití správného překladu podle aktuálního jazyka
+    const countryNames = {
+        'cs': {
+            'cz': 'Česká republika',
+            'sk': 'Slovensko',
+            'pl': 'Polsko',
+            'de': 'Německo'
+        },
+        'en': {
+            'cz': 'Czech Republic',
+            'sk': 'Slovakia',
+            'pl': 'Poland',
+            'de': 'Germany'
+        }
+    };
+    
+    label.textContent = countryNames[currentLanguage][code];
+    
+    item.appendChild(input);
+    item.appendChild(label);
+    container.appendChild(item);
+}
+
+
+// Event listenery pro tlačítka jazyka
+document.getElementById('lang-switch-cs').addEventListener('click', function() {
+    setLanguage('cs');
+});
+
+document.getElementById('lang-switch-en').addEventListener('click', function() {
+    setLanguage('en');
+});
+
+
+document.addEventListener('DOMContentLoaded', function() {
+    const step1 = document.getElementById('step1');
+    const step2 = document.getElementById('step2');
+    const step3 = document.getElementById('step3');
+    const step4 = document.getElementById('step4');
+    const step5 = document.getElementById('step5');
+    const step6 = document.getElementById('step6');
+ 
+ //    const step1Validation = document.getElementById('step1-validation');
+     const step1Options = document.getElementById('step1-options');
+     const mapTypeRadios = document.querySelectorAll('input[name="map-type"]');
+     const staticMapCoordinates = document.getElementById('static-map-coordinates');
+     const copyHeadBtn = document.getElementById('copy-head');
+     const copyBodyBtn = document.getElementById('copy-body');
+     const copyScriptBtn = document.getElementById('copy-script');
+     const downloadCodeBtn = document.getElementById('download-code');
+     const goToPreviewBtn = document.getElementById('go-to-preview');
+     const step6Prev = document.getElementById('step6-prev');
+     const step6Reload = document.getElementById('step6-reload');
+        
+    const step1Indicator = document.getElementById('step1-indicator');
+    const step2Indicator = document.getElementById('step2-indicator');
+    const step3Indicator = document.getElementById('step3-indicator');
+    const step4Indicator = document.getElementById('step4-indicator');
+    const step5Indicator = document.getElementById('step5-indicator');
+    const step6Indicator = document.getElementById('step6-indicator');
+
+ // Tlačítka pro otevření nápovědy
+        headInfoBtn = document.getElementById('head-info');
+	bodyInfoBtn = document.getElementById('body-info');
+	scriptInfoBtn = document.getElementById('script-info');
+        
+        // Popupy s nápovědou
+        const headHelpPopup = document.getElementById('head-help');
+	const bodyHelpPopup = document.getElementById('body-help');
+	const scriptHelpPopup = document.getElementById('script-help');
+        
+        // Tlačítka pro zavření nápovědy
+	const closeButtons = document.querySelectorAll('.help-popup-close');
+
+	// Event listenery pro otevření nápovědy
+if (headInfoBtn) {
+    headInfoBtn.setAttribute('data-target', 'head-help'); // Výchozí hodnota
+    headInfoBtn.addEventListener('click', function() {
+        const target = this.getAttribute('data-target');
+        if (target && document.getElementById(target)) {
+            document.getElementById(target).classList.add('active');
+        }
+    });
+}
+        
+if (bodyInfoBtn) {
+    bodyInfoBtn.setAttribute('data-target', 'body-help'); // Výchozí hodnota
+    bodyInfoBtn.addEventListener('click', function() {
+        const target = this.getAttribute('data-target');
+        if (target && document.getElementById(target)) {
+            document.getElementById(target).classList.add('active');
+        }
+    });
+}
+
+if (scriptInfoBtn) {
+    scriptInfoBtn.setAttribute('data-target', 'script-help'); // Výchozí hodnota
+    scriptInfoBtn.addEventListener('click', function() {
+        const target = this.getAttribute('data-target');
+        if (target && document.getElementById(target)) {
+            document.getElementById(target).classList.add('active');
+        }
+    });
+}
+        
+        // Event listenery pro zavření nápovědy
+closeButtons.forEach(button => {
+    button.addEventListener('click', function() {
+        const popup = this.closest('.help-popup');
+        if (popup) {
+            popup.classList.remove('active');
+        }
+    });
+});
+        
+        // Zavření při kliknutí mimo obsah
+document.querySelectorAll('.help-popup').forEach(popup => {
+    popup.addEventListener('click', function(e) {
+        if (e.target === this) {
+            this.classList.remove('active');
+        }
+    });
+});
+
+// Zavření při klávese Escape
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        document.querySelectorAll('.help-popup').forEach(popup => {
+            popup.classList.remove('active');
+        });
+    }
+});
+
+    document.querySelectorAll('.wizard-step').forEach(step => {
+         step.addEventListener('click', function() {
+             const targetStepNumber = parseInt(this.dataset.step);
+             const activeStepElement = document.querySelector('.wizard-step.active');
+             if (!activeStepElement) return;
+             const activeStepNumber = parseInt(activeStepElement.dataset.step);
+             if (targetStepNumber < activeStepNumber) {
+                  if (document.getElementById('step' + targetStepNumber)) {
+                    showStep('step' + targetStepNumber);
+                  }
+             }
+         });
+     }); // Konec DOMContentLoaded
+    
+    // Zobrazit/skrýt pole pro souřadnice na základě výběru typu mapy
+    mapTypeRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.value === 'static') {
+                staticMapCoordinates.classList.remove('hidden');
+            } else {
+                staticMapCoordinates.classList.add('hidden');
+            }
+        });
+    });
+    
+    // Tlačítko pro zobrazení náhledu
+    goToPreviewBtn.addEventListener('click', function() {
+        loadPreview();
+        console.log("click")
+        step5.classList.add('hidden');
+        step6.classList.remove('hidden');
+        
+        step5Indicator.classList.remove('active');
+        step5Indicator.classList.add('completed');
+        step6Indicator.classList.add('active');
+    });
+
+    // Tlačítko zpět z náhledu
+    step6Prev.addEventListener('click', function() {
+        step6.classList.add('hidden');
+        showStep('step5');
+        
+        step6Indicator.classList.remove('active');
+        step5Indicator.classList.remove('completed');
+        step5Indicator.classList.add('active');
+        
+        // Vyčistíme náhled
+        document.getElementById('preview-container').innerHTML = '<div class="spinner" id="preview-spinner"></div>';
+    });
+
+    // Tlačítko pro obnovení náhledu
+    step6Reload.addEventListener('click', function() {
+        loadPreview();
+    });
+    
+    
+// Funkce pro kopírování kódu do schránky
+    function copyToClipboard(text, button) {
+        navigator.clipboard.writeText(text).then(function() {
+            const originalSpanText = button.querySelector('span').textContent;
+            button.querySelector('span').textContent = translations[currentLanguage].copied;
+            button.disabled = true;
+            setTimeout(function() {
+                button.querySelector('span').textContent = originalSpanText;
+                button.disabled = false;
+            }, 2000);
+        }).catch(function(err) {
+            console.error('Kopírování do schránky selhalo: ', err);
+            alert('Kopírování do schránky selhalo. Zkopírujte kód ručně.');
+        });
+    }
+
+    // Kopírování kódu hlavičky
+    copyHeadBtn.addEventListener('click', function() {
+        copyToClipboard(document.getElementById('head-code').textContent, this);
+    });
+    
+    // Kopírování kódu těla
+    copyBodyBtn.addEventListener('click', function() {
+        copyToClipboard(document.getElementById('body-code').textContent, this);
+    });
+    
+    // Kopírování JavaScript kódu
+    copyScriptBtn.addEventListener('click', function() {
+        copyToClipboard(document.getElementById('script-code').textContent, this);
+    });
+    
+    // Stažení vygenerovaného kódu
+    downloadCodeBtn.addEventListener('click', function() {
+        const headCode = document.getElementById('head-code').textContent;
+        const bodyCode = document.getElementById('body-code').textContent;
+        const scriptCode = document.getElementById('script-code').textContent;
+        
+        const fullCode = `<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PPL Widget - Ukázka implementace</title>
+    ${headCode}
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            padding: 20px;
+        }
+        
+        .widget-container {
+            width: 100%;
+            height: 600px;
+            border: 1px solid #ccc;
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            color: #00519e;
+        }
+    </style>
+</head>
+<body>
+    <h1>Ukázka implementace PPL Widgetu</h1>
+    <div class="widget-container">
+        ${bodyCode}
+    </div>
+    ${scriptCode}
+</body>
+</html>`;
+        
+        const blob = new Blob([fullCode], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'ppl-widget-implementace.html';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    });
+    
+    // Nastavení výchozího jazyka
+    setLanguage('cs');
+    
+    // Zobrazení prvního kroku
+    showStep('step1');
+});
+
+
+
+
+
+</script>
+</body>
+</html>
