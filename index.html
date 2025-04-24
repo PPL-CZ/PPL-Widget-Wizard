@@ -462,6 +462,15 @@ button.next:focus {
 }
 
     </style>
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-YBB3QG2FB0"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-YBB3QG2FB0');
+</script>
 </head>
 <body>
     <div class="container">
@@ -1127,6 +1136,32 @@ window.addEventListener('message', function(event) {
 <script>
 
 let headInfoBtn, bodyInfoBtn, scriptInfoBtn;
+
+// Google Analytics Event Tracking
+function trackEvent(category, action, label, value) {
+  // Push to dataLayer for GA4
+  if (typeof gtag === 'function') {
+    gtag('event', action, {
+      'event_category': category,
+      'event_label': label,
+      'value': value
+    });
+  }
+  
+  // Support for older Universal Analytics if needed
+  if (typeof ga === 'function') {
+    ga('send', 'event', category, action, label, value);
+  }
+  
+  // Log to console for debugging
+  console.log(`Analytics Event: ${category} - ${action} - ${label} - ${value}`);
+}
+
+// Track step navigation
+function trackStepNavigation(fromStep, toStep) {
+  trackEvent('Navigation', 'Step Change', `From ${fromStep} to ${toStep}`);
+}
+
     const translations = {
     cs: {
         // Hlavička a navigace
@@ -1722,8 +1757,9 @@ function updateStepIndicators(activeStepId) {
 }
 
 function showStep(stepId) {
-    // Nejprve snížíme opacity aktuálního kroku
     const currentActiveStep = document.querySelector('.wizard-content:not(.hidden)');
+    let currentStepId = currentActiveStep ? currentActiveStep.id : null;
+   
     if (currentActiveStep) {
         currentActiveStep.style.opacity = "0";
         
@@ -1739,6 +1775,12 @@ function showStep(stepId) {
             const nextStep = document.getElementById(stepId);
             if (nextStep) {
                 nextStep.classList.remove('hidden');
+	
+// Sledování přechodu mezi kroky (bod 6)
+                    if (currentStepId && currentStepId !== stepId) {
+                        trackStepNavigation(currentStepId, stepId);
+                        console.log(`Navigace z ${currentStepId} do ${stepId}`);
+                    }
                 
                 // Krátká prodleva pro správný repaint a pak nastavíme opacity na 1
                 setTimeout(() => {
@@ -2120,6 +2162,41 @@ document.addEventListener('DOMContentLoaded', function() {
     const step5Indicator = document.getElementById('step5-indicator');
     const step6Indicator = document.getElementById('step6-indicator');
 
+     // Sledování výběru výdejních míst (bod 4)
+    document.querySelectorAll('#step1-options input[type="checkbox"]').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            trackEvent('Form Interaction', 'Pickup Point Type Selection', this.id, this.checked ? 1 : 0);
+        });
+    });
+
+   // Sledování výběru zemí
+    document.querySelectorAll('#step2-options input[type="checkbox"]').forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            trackEvent('Form Interaction', 'Country Selection', this.id, this.checked ? 1 : 0);
+        });
+    });
+
+    // Sledování výběru jazyka widgetu
+    document.querySelectorAll('input[name="language"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            trackEvent('Form Interaction', 'Widget Language Selection', this.value);
+        });
+    });
+
+    // Sledování výběru typu mapy
+    document.querySelectorAll('input[name="map-type"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            trackEvent('Form Interaction', 'Map Type Selection', this.value);
+            
+            // Sledujeme také zobrazení/skrytí polí pro souřadnice
+            if (this.value === 'static') {
+                trackEvent('UI Interaction', 'Show Coordinates Fields', 'Static Map Selected');
+            } else {
+                trackEvent('UI Interaction', 'Hide Coordinates Fields', 'Non-Static Map Selected');
+            }
+        });
+    });
+
  // Tlačítka pro otevření nápovědy
         headInfoBtn = document.getElementById('head-info');
 	bodyInfoBtn = document.getElementById('body-info');
@@ -2219,6 +2296,7 @@ document.addEventListener('keydown', function(e) {
     
     // Tlačítko pro zobrazení náhledu
     goToPreviewBtn.addEventListener('click', function() {
+	trackEvent('User Action', 'View Preview', 'Open Preview');
         loadPreview();
         console.log("click")
         step5.classList.add('hidden');
@@ -2231,6 +2309,7 @@ document.addEventListener('keydown', function(e) {
 
     // Tlačítko zpět z náhledu
     step6Prev.addEventListener('click', function() {
+	trackEvent('Navigation', 'Back from Preview', 'Return to Generated Code');
         step6.classList.add('hidden');
         showStep('step5');
         
@@ -2244,6 +2323,7 @@ document.addEventListener('keydown', function(e) {
 
     // Tlačítko pro obnovení náhledu
     step6Reload.addEventListener('click', function() {
+	trackEvent('User Action', 'Reload Preview', 'Refresh Widget Preview');
         loadPreview();
     });
     
@@ -2267,16 +2347,19 @@ document.addEventListener('keydown', function(e) {
     // Kopírování kódu hlavičky
     copyHeadBtn.addEventListener('click', function() {
         copyToClipboard(document.getElementById('head-code').textContent, this);
+	trackEvent('User Action', 'Copy Code', 'Header Code');
     });
     
     // Kopírování kódu těla
     copyBodyBtn.addEventListener('click', function() {
         copyToClipboard(document.getElementById('body-code').textContent, this);
+	trackEvent('User Action', 'Copy Code', 'Body Code');
     });
     
     // Kopírování JavaScript kódu
     copyScriptBtn.addEventListener('click', function() {
         copyToClipboard(document.getElementById('script-code').textContent, this);
+	trackEvent('User Action', 'Copy Code', 'JavaScript Code');
     });
     
     // Stažení vygenerovaného kódu
@@ -2284,7 +2367,36 @@ document.addEventListener('keydown', function(e) {
         const headCode = document.getElementById('head-code').textContent;
         const bodyCode = document.getElementById('body-code').textContent;
         const scriptCode = document.getElementById('script-code').textContent;
-        
+
+// Sledování konfigurace a dokončení průvodce
+    const parcelshop = document.getElementById('parcelshop').checked;
+    const parcelbox = document.getElementById('parcelbox').checked;
+    const alzabox = document.getElementById('alzabox').checked;
+    
+    // Vytvoření seznamu zemí
+    let countries = [];
+    if (document.getElementById('cz').checked) countries.push('cz');
+    if (document.getElementById('sk').checked) countries.push('sk');
+    if (document.getElementById('pl').checked) countries.push('pl');
+    if (document.getElementById('de').checked) countries.push('de');
+    
+    // Získání vybrané výchozí země a typu mapy
+    const defaultCountry = document.querySelector('input[name="default-country"]:checked')?.value || '';
+    const mapType = document.querySelector('input[name="map-type"]:checked')?.value || 'default';
+    
+    // Sledování konfigurace
+    trackEvent(
+        'Wizard Completion', 
+        'Download Complete Implementation', 
+        `Types: ${[
+            parcelshop ? 'ParcelShop' : '', 
+            parcelbox ? 'ParcelBox' : '', 
+            alzabox ? 'AlzaBox' : ''
+        ].filter(Boolean).join(',')} | Countries: ${countries.join(',')} | Default: ${defaultCountry} | MapType: ${mapType}`
+    );
+    
+	 trackEvent('User Action', 'Download Code', 'Complete Implementation');
+
         const fullCode = `<!DOCTYPE html>
 <html lang="cs">
 <head>
@@ -2337,7 +2449,10 @@ document.addEventListener('keydown', function(e) {
     showStep('step1');
 });
 
-
+// Sledování načtení stránky (bod 5)
+window.addEventListener('load', function() {
+    trackEvent('Page', 'Load', 'Widget Wizard Loaded');
+});
 
 
 
