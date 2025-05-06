@@ -881,7 +881,9 @@ button.next:focus {
 window.addEventListener('message', function(event) {
     if (event.data && event.data.event === 'pplPickupPointSelected') {
         const selectedPoint = event.data.point;
-        
+	console.log('Message listener - Vybráno výdejní místo:', selectedPoint);
+    }
+
         // Uložení dat do skrytých polí formuláře
         document.getElementById('pickup_id').value = selectedPoint.id;
         document.getElementById('pickup_name').value = selectedPoint.name;
@@ -1110,6 +1112,7 @@ window.addEventListener('message', function(event) {
         </div>
     </div>
 </div>
+
 <!-- Krok 6 -->
 <div class="wizard-content hidden" id="step6">
     <div class="button-group" style="margin-top: 0; margin-bottom: 20px; justify-content: flex-start; gap: 10px;">
@@ -1125,12 +1128,24 @@ window.addEventListener('message', function(event) {
     
     <h2 class="step-title">Náhled widgetu</h2>
     <p class="description">Zde můžete vidět, jak bude widget vypadat s vašimi nastaveními.</p>
+    <div id="mapa-a-detaily-wrapper" style="display: flex; gap: 20px; align-items: flex-start;">
+
     
-    <div id="preview-container" style="width: 100%; height: 900px; border: 1px solid #ccc;">
+    <div id="preview-container" style="flex: 3; height: 900px; border: 1px solid #ccc; min-width: 0;">
         <div class="spinner" id="preview-spinner"></div>
         <!-- Widget bude načten sem -->
     </div>
+<div id="vybrane-vm-detail" style="flex: 1; padding: 15px; border: 1px solid #ccc; background-color: #f9f9f9; display: none; min-width: 0; position: relative;">
+    <button id="zavrit-detaily-btn" title="Zavřít detaily" style="position: absolute; top: -13px; right: -12px; cursor: pointer; background: rgba(224, 224, 224, 0.5); border: none; font-size: 22px; line-height: 1; color: #777; padding: 2px 5px;">&times;</button>
+    <h3>Detail vybraného výdejního místa:</h3>
+    <p><strong>Typ:</strong> <span id="vm-typ"></span></p>
+    <p><strong>Kód:</strong> <span id="vm-kod"></span></p>
+    <p><strong>Název:</strong> <span id="vm-nazev"></span></p>
+    <p><strong>Adresa:</strong> <span id="vm-adresa"></span></p>
+    <p><strong>Platba kartou:</strong> <span id="vm-platba-kartou"></span></p>
+    <p><strong>Otevírací doba:</strong> <span id="vm-oteviraci-doba"></span></p>
 </div>
+    </div> </div>
 </div>
 
 <script>
@@ -1161,6 +1176,160 @@ function trackEvent(category, action, label, value) {
 function trackStepNavigation(fromStep, toStep) {
   trackEvent('Navigation', 'Step Change', `From ${fromStep} to ${toStep}`);
 }
+
+// ========== ZAČÁTEK PŘIDANÉHO KÓDU PRO LADĚNÍ EVENTŮ ==========
+
+// Listener pro 'message' události z PPL widgetu
+window.addEventListener('message', function(event) {
+    // Logujte KAŽDOU message událost, abyste viděli, co widget posílá
+    console.log("RAW Message event received:", event);
+    console.log("Message event data:", event.data); // Detailní pohled na data
+    console.log("Message event origin:", event.origin); // Odkud zpráva přišla (mělo by být z ppl.cz)
+
+    // Zkuste zpracovat data, pokud mají očekávanou strukturu
+    if (event.data && typeof event.data === 'object' && event.data.event === 'pplPickupPointSelected') {
+        const selectedPoint = event.data.point;
+        console.log('Message listener - Vybráno výdejní místo:', selectedPoint);
+        // Zde můžete přidat vaši původní logiku pro zpracování selectedPoint
+        // Např. alert('Vybráno: ' + selectedPoint.name);
+    }
+    // Zkuste zpracovat data, pokud jsou poslána jako string (např. JSON)
+    else if (event.data && typeof event.data === 'string') {
+        try {
+            const parsedData = JSON.parse(event.data);
+            console.log("Parsed string message data:", parsedData);
+            if (parsedData && parsedData.event === 'pplPickupPointSelected') {
+                 const selectedPoint = parsedData.point;
+                 console.log('Message listener (from parsed string) - Vybráno výdejní místo:', selectedPoint);
+                 // Zde můžete přidat vaši původní logiku pro zpracování selectedPoint
+            }
+        } catch (e) {
+            // Nebyl to platný JSON string
+            // console.log("Received string message, but not valid JSON:", event.data);
+        }
+    }
+});
+
+// Funkce pro nastavení alternativních (Custom Event) listenerů
+function setupCustomEventListeners() {
+    const mapElement = document.getElementById('ppl-parcelshop-map');
+    if (mapElement) {
+        console.log("Setting up custom event listeners on #ppl-parcelshop-map");
+
+        // Listener podle starší dokumentace (název eventu 'ppl-parcelshop-map')
+        mapElement.addEventListener("ppl-parcelshop-map", (customEvent) => {
+            console.log("CustomEvent on #ppl-parcelshop-map ('ppl-parcelshop-map' event) - Detail:", customEvent.detail);
+        });
+
+        // Listener s možným novým názvem eventu
+        mapElement.addEventListener("pplPickupPointSelected", (customEvent) => {
+            console.log("CustomEvent on #ppl-parcelshop-map ('pplPickupPointSelected' event) - Detail:", customEvent.detail);
+        });
+
+        // Listener s obecnějším názvem
+        mapElement.addEventListener("pointSelected", (customEvent) => {
+            console.log("CustomEvent on #ppl-parcelshop-map ('pointSelected' event) - Detail:", customEvent.detail);
+        });
+
+         // Ještě jeden obecnější název
+        mapElement.addEventListener("pickupPointSelected", (customEvent) => {
+            console.log("CustomEvent on #ppl-parcelshop-map ('pickupPointSelected') - Detail:", customEvent.detail);
+        });
+
+    } else {
+        console.warn("#ppl-parcelshop-map element not found when trying to set up custom event listeners.");
+   }
+
+    // Listener na document podle jedné ze starších dokumentací
+    document.addEventListener("ppl-parcelshop-map", (event) => {
+    console.log("CustomEvent listener on document ('ppl-parcelshop-map' event) - Detail:", event.detail);
+    console.log("Kompletní data VM:", JSON.stringify(event.detail, null, 2));
+
+    const detailVM = event.detail; // Data o výdejním místě z události
+
+   if (detailVM) {
+        console.log("Zpracovávám data VM:", detailVM); // Pro ladění
+
+        // Typ
+        const typElement = document.getElementById('vm-typ');
+        if (typElement) typElement.textContent = detailVM.accessPointType || 'N/A';
+
+        // Kód (Pokud ho v HTML stále máte)
+        const kodElement = document.getElementById('vm-kod');
+        if (kodElement) kodElement.textContent = detailVM.code || 'N/A';
+
+        // Název
+        const nazevElement = document.getElementById('vm-nazev');
+        if (nazevElement) nazevElement.textContent = detailVM.name || 'N/A';
+
+        const adresaElement = document.getElementById('vm-adresa');
+        if (adresaElement) {
+            let celaAdresa = '';
+            // Přistupujeme k polím přímo v detailVM
+            if (detailVM.street) {
+                celaAdresa += detailVM.street;
+            }
+            if (detailVM.city) {
+                celaAdresa += (celaAdresa ? ', ' : '') + detailVM.city;
+            }
+            if (detailVM.zipCode) { // Ověřte název 'zipCode' v konzoli!
+                celaAdresa += (celaAdresa ? ' ' : '') + detailVM.zipCode;
+            }
+            adresaElement.textContent = celaAdresa || 'N/A';
+            console.log("Sestavená adresa:", celaAdresa); // Pro ladění
+        } else {
+            console.log("Element vm-adresa nenalezen."); // Pro ladění
+        }
+
+	// Platba kartou (POKUD POLE EXISTUJE) ---
+    const platbaKartouElement = document.getElementById('vm-platba-kartou');
+    if (platbaKartouElement) {
+        // DŮLEŽITÉ: Ověřte v konzoli, zda pole 'activeCardPayment' opravdu existuje a jak se jmenuje!
+        // Pokud se jmenuje jinak, upravte název v řádku níže.
+        const nazevPoleProPlatbuKartou = 'activeCardPayment'; // <== ZDE PŘÍPADNĚ ZMĚŇTE NÁZEV POLE
+
+        if (typeof detailVM[nazevPoleProPlatbuKartou] === 'boolean') { // Kontrolujeme, zda pole existuje a je to boolean (true/false)
+            platbaKartouElement.textContent = detailVM[nazevPoleProPlatbuKartou] ? 'Ano' : 'Ne';
+        } else {
+             // Pokud pole neexistuje nebo není boolean, zobrazí se N/A
+             platbaKartouElement.textContent = 'N/A';
+             console.log(`Pole '${nazevPoleProPlatbuKartou}' nenalezeno nebo není typu boolean.`); // Pro ladění
+        }
+    } else {
+        console.log("Element vm-platba-kartou nenalezen."); // Pro ladění
+    }
+       
+        const oteviraciDobaElement = document.getElementById('vm-oteviraci-doba');
+        if (oteviraciDobaElement) {
+            let oteviraciDobaText = '';
+            // Zkontrolujeme, zda openingHours existuje a je to pole (array) s nějakými prvky
+            if (detailVM.openHours && Array.isArray(detailVM.openHours) && detailVM.openHours.length > 0) {
+                console.log("Zpracovávám openingHours jako pole:", detailVM.openHours); // Pro ladění
+                // Spojíme všechny řádky pole do jednoho textu, každý řádek oddělíme HTML tagem <br> (nový řádek)
+                oteviraciDobaText = detailVM.openHours.join('<br>');
+                // Nastavíme HTML obsah elementu (použijeme innerHTML místo textContent kvůli <br>)
+                oteviraciDobaElement.innerHTML = oteviraciDobaText;
+            } else {
+                 console.log("Pole openingHours nenalezeno nebo je prázdné/není pole."); // Pro ladění
+                // Pokud data nejsou ve správném formátu nebo chybí, zobrazíme N/A
+                oteviraciDobaElement.textContent = 'N/A';
+            }
+        } else {
+             console.log("Element vm-oteviraci-doba nenalezen."); // Pro ladění
+        }
+
+        const detailKontejner = document.getElementById('vybrane-vm-detail');
+        if (detailKontejner) {
+            detailKontejner.style.display = 'block';
+        
+   }
+    } else {
+        // ... kód pro případ, že detailVM je prázdný ...
+    }
+});
+}
+
+// document.addEventListener('DOMContentLoaded', setupCustomEventListeners);
 
     const translations = {
     cs: {
@@ -1546,19 +1715,21 @@ function loadPreview() {
     // Handler pro načtení skriptu
     jsScript.onload = function() {
         spinner.classList.remove('active');
+	 console.log("PPL script (main.js) loaded. Widget should initialize automatically."); // Přidáno pro info
+ /* <-- Začátek komentáře
         setTimeout(() => {
             if (window.PPL && typeof window.PPL.initMap === 'function') {
-                console.log("Attempting to call window.PPL.initMap()");
-                try {
-                    window.PPL.initMap();
-                    console.log("window.PPL.initMap() called successfully.");
-                } catch (e) {
+               console.log("Attempting to call window.PPL.initMap()");
+               try {
+                  window.PPL.initMap();
+                   console.log("window.PPL.initMap() called successfully.");
+               } catch (e) {
                     console.error("Error calling window.PPL.initMap():", e);
                 }
             } else {
                 console.warn("window.PPL or window.PPL.initMap not found after script load.");
             }
-        }, 500); // Můžeš zkusit i delší čas, např. 1500
+       }, 1500);   */  // <-- Konec komentáře
     };
     
     jsScript.onerror = function() {
@@ -1567,6 +1738,11 @@ function loadPreview() {
     };
     
     document.body.appendChild(jsScript);
+
+ setTimeout(function() {
+        setupCustomEventListeners();
+    }, 1000);
+
 }
     
     
@@ -2281,6 +2457,16 @@ document.addEventListener('keydown', function(e) {
                   }
              }
          });
+const zavritDetailyBtn = document.getElementById('zavrit-detaily-btn');
+const detailKontejnerProZavirani = document.getElementById('vybrane-vm-detail'); 
+
+if (zavritDetailyBtn && detailKontejnerProZavirani) {
+    zavritDetailyBtn.addEventListener('click', function() {
+        detailKontejnerProZavirani.style.display = 'none';
+        // Když je panel skryt, mapa by se měla automaticky roztáhnout díky flexboxu
+    });
+}
+
      }); // Konec DOMContentLoaded
     
     // Zobrazit/skrýt pole pro souřadnice na základě výběru typu mapy
