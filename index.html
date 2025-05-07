@@ -826,15 +826,13 @@ button.next:focus {
             <p>JavaScript kód vložte na konec těla stránky těsně před uzavírací tag <code>&lt;/body&gt;</code>. Tento kód zachytává událost, když uživatel vybere výdejní místo na mapě.</p>
             
             <div class="example-structure">
-    &lt;!-- Obsah stránky --&gt;
-    
-    &lt;!-- Ostatní skripty --&gt;
+
     <span class="highlight">&lt;!-- Sem vložte JavaScript kód pro zachycení vybraného místa --&gt;
-    &lt;script&gt;
+    <script>
     window.addEventListener('message', function(event) {
-        if (event.data && event.data.event === 'pplPickupPointSelected') {
-            const selectedPoint = event.data.point;
-            console.log('Vybráno výdejní místo:', selectedPoint);
+    if (event.data && event.data.event === 'pplPickupPointSelected') {
+        const selectedPoint = event.data.point;
+        console.log('Vybráno výdejní místo (message event):', selectedPoint);
             
             // Zde můžete přidat vlastní kód pro zpracování vybraného místa
             // Například:
@@ -843,7 +841,21 @@ button.next:focus {
             // document.getElementById('shipping-pickup-address').value = selectedPoint.address;
         }
     });
-    &lt;/script&gt;</span>
+
+document.addEventListener("ppl-parcelshop-map", function(event) {
+    const detailVM = event.detail;
+    console.log('Vybráno výdejní místo (custom event):', detailVM);
+    
+    if (detailVM) {
+        // Zde máte přístup ke všem detailům výdejního místa
+        console.log('Kód VM:', detailVM.code);
+        console.log('Název VM:', detailVM.name);
+        console.log('Typ VM:', detailVM.accessPointType);
+        console.log('Adresa VM:', [detailVM.street, detailVM.city, detailVM.zipCode].filter(Boolean).join(', '));
+    }
+});
+
+    </script></span>
 &lt;/body&gt;
 &lt;/html&gt;
 </div>
@@ -1569,19 +1581,42 @@ function generateCode() {
     // Generování JavaScript kódu pro zachycení výběru
     // Pokud je typ mapy 'catalog' nebo 'static', není potřeba kód pro zpracování výběru
     let scriptCode = '';
-    if (mapType === 'default') {
-        scriptCode = `<!-- JavaScript kód pro zpracování vybraného místa -->
+if (mapType === 'default') {
+    scriptCode = `<!-- JavaScript kód pro zpracování vybraného místa -->
 <script>
+// Standardní listener pro message události (dle ppl.cz dokumentace)
 window.addEventListener('message', function(event) {
+    console.log("RAW Message event received:", event);
+    console.log("Message event data:", event.data);
+    
     if (event.data && event.data.event === 'pplPickupPointSelected') {
         const selectedPoint = event.data.point;
-        console.log('Vybráno výdejní místo:', selectedPoint);
+        console.log('Vybráno výdejní místo (message event):', selectedPoint);
         
         // Zde můžete přidat vlastní kód pro zpracování vybraného místa
         // Například:
         // document.getElementById('shipping-pickup-id').value = selectedPoint.id;
         // document.getElementById('shipping-pickup-name').value = selectedPoint.name;
         // document.getElementById('shipping-pickup-address').value = selectedPoint.address;
+    }
+});
+
+// Alternativní listener pro custom event 'ppl-parcelshop-map' 
+document.addEventListener("ppl-parcelshop-map", function(event) {
+    console.log("CustomEvent listener na document ('ppl-parcelshop-map' event) - Detail:", event.detail);
+    const detailVM = event.detail;
+    
+   
+});
+
+// Log všech událostí po načtení stránky
+window.addEventListener('load', function() {
+    console.log("Stránka načtena, PPL widget by měl být nyní inicializován");
+    const mapElement = document.getElementById('ppl-parcelshop-map');
+    if (mapElement) {
+        console.log("Element mapy PPL nalezen:", mapElement);
+    } else {
+        console.warn("Element mapy PPL nenalezen - zkontrolujte ID elementu");
     }
 });
 <\/script>`;
