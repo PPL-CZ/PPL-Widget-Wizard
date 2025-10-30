@@ -107,7 +107,7 @@ function App() {
     }
 
     if (typeof window.ga === 'function') {
-      window.ga('send', 'event', category, action, label, value);
+      window.ga('send', 'event', category, action, label || '', value);
     }
 
     console.log(
