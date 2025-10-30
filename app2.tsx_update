@@ -1,0 +1,728 @@
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+// import './App.css';
+
+// Import komponent
+import WizardHeader from './components/WizardHeader';
+import LanguageSelector from './components/LanguageSelector';
+import WizardProgress from './components/WizardProgress';
+import Step1 from './components/steps/Step1';
+import Step2 from './components/steps/Step2';
+import Step3 from './components/steps/Step3';
+import Step4 from './components/steps/Step4';
+import Step5 from './components/steps/Step5';
+import Step6 from './components/steps/Step6';
+import HelpPopup from './components/HelpPopup'; // Předpokládám, že HelpContentBlockStructure je exportován odsud nebo definován globálně
+
+// Konstanta s překlady
+const allTranslations = {
+  cs: {
+    lang: 'cs',
+    title: 'PPL Widget Wizard',
+    step1Indicator: 'Výběr typů míst',
+    step2Indicator: 'Výběr zemí',
+    step3Indicator: 'Výchozí země',
+    step4Indicator: 'Typ mapy',
+    step5Indicator: 'Vygenerovaný kód',
+    step6Indicator: 'Náhled widgetu',
+    step1Title: 'Vyberte typy výdejních míst',
+    step1Description:
+      'Zvolte, která výdejní místa (ParcelShopy, PPL ParcelBoxy, AlzaBoxy) chcete zobrazit ve widgetu na vašem e-shopu.',
+    parcelshop: 'ParcelShop - Výdejní místa PPL',
+    parcelbox: 'PPL ParcelBox - Samoobslužné boxy PPL',
+    alzabox: 'AlzaBox - Samoobslužné boxy Alza',
+    continue: 'Pokračovat',
+    back: 'Zpět',
+    selectAtLeastOnePoint: 'Vyberte prosím alespoň jeden typ výdejního místa.',
+    step2Title: 'Vyberte dostupné země',
+    step2Description:
+      'Zvolte, pro které země bude možné ve widgetu vybírat výdejní místa.',
+    czechRepublic: 'Česká republika',
+    slovakia: 'Slovensko',
+    poland: 'Polsko',
+    germany: 'Německo',
+    selectAtLeastOneCountry: 'Vyberte prosím alespoň jednu zemi.',
+    step3Title: 'Nastavte výchozí zobrazení',
+    step3Description:
+      'Zvolte, která z vybraných zemí se má ve widgetu zobrazit jako první a v jakém jazyce.',
+    defaultCountryTitle: 'Výchozí země',
+    languageTitle: 'Jazyk widgetu',
+    languageDescription: 'Vyberte jazykovou verzi ovládacích prvků widgetu.',
+    czech: 'Čeština',
+    english: 'Angličtina',
+    selectDefaultCountry: 'Vyberte prosím výchozí zemi.',
+    step4Title: 'Vyberte typ mapy',
+    step4Description:
+      'Zvolte, jaký typ mapy chcete ve widgetu zobrazit a jak se bude chovat.',
+    mapDefault:
+      '<strong>Default</strong> - Zobrazuje mapu se všemi funkcionalitami, s tlačítkem Vybrat výdejní místo, které předává data vybraného výdejního místa rodičovské aplikaci ve formě eventu.',
+    mapStatic:
+      '<strong>Static</strong> - Zobrazuje statickou mapu s jediným zobrazeným bodem, který je dle dat z API nejblíže definovanému středu mapy. Definice atributů <code>data-lat</code> a <code>data-lng</code> určující střed mapy je v kombinaci s tímto módem velmi doporučeno.',
+    mapCatalog:
+      '<strong>Catalog</strong> - Zobrazuje mapu se všemi funkcionalitami, mimo tlačítka Vybrat výdejní místo. Toto použití je vhodné pro uživatele, které chceme primárně směrovat na detaily výdejních míst nasazené na portálu PPL.',
+    coordinatesTitle: 'Souřadnice pro statickou mapu',
+    coordinatesDescription:
+      'Zadejte geografické souřadnice středu mapy. Pro typ Static je to důrazně doporučeno.',
+    latitude: 'Zeměpisná šířka (lat):',
+    longitude: 'Zeměpisná délka (lng):',
+    tooltipDefault:
+      'Nejčastější volba pro e-shopy. Umožňuje zákazníkovi vybrat si preferované výdejní místo přímo v košíku.',
+    tooltipStatic:
+      'Vhodné, pokud chcete zobrazit pouze jedno konkrétní místo (např. vaši pobočku) nebo nejbližší Parcelbox k adrese vaší firmy na kontaktní stránce. Vyžaduje zadání GPS souřadnic.',
+    tooltipCatalog:
+      'Vhodné pro informační stránky, kde nechcete umožnit výběr místa, ale pouze zobrazit mapu se všemi dostupnými místy (např. stránky "Kde nás najdete").',
+    enterCoordinates:
+      'Pro statickou mapu zadejte prosím souřadnice zeměpisné šířky a délky.',
+    enterValidCoordinates:
+      'Zadejte prosím platné souřadnice v číselném formátu.',
+    step5Title: 'Vygenerovaný kód pro vložení na váš web',
+    step5Description:
+      'Zkopírujte následující kód a vložte jej do svého eshopu pro zobrazení widgetu PPL výdejních míst s vašimi vlastními nastaveními.',
+    headCodeTitle: 'Script pro vložení do hlavičky stránky',
+    bodyCodeTitle: 'Kód pro vložení do těla stránky',
+    scriptCodeTitle: 'JavaScript kód pro zachycení vybraného místa',
+    noteSizeTitle: 'Poznámka:',
+    noteSizeText:
+      'Pro správné zobrazení widgetu na vašem webu musí být rodičovský element dostatečně široký (minimálně 320px) a vysoký (minimálně 550px). Pro další úpravy a nastavení se podívejte do <a href="https://www.ppl.cz" target="_blank" rel="noopener noreferrer">dokumentace PPL</a>.',
+    helpButton: 'Nápověda',
+    preview: 'Zobrazit náhled',
+    changeSettings: 'Změnit nastavení',
+    download: 'Stáhnout kód',
+    copyHead: 'Zkopírovat kód hlavičky',
+    copyBody: 'Zkopírovat kód těla',
+    copyScript: 'Zkopírovat JavaScript kód',
+    copied: 'Zkopírováno!',
+    step6Title: 'Náhled widgetu',
+    step6Description:
+      'Zde můžete vidět, jak bude widget vypadat s vašimi nastaveními.',
+    reloadPreview: 'Obnovit náhled',
+    headHelpTitle: 'Jak implementovat kód hlavičky',
+    bodyHelpTitle: 'Jak implementovat kód těla',
+    scriptHelpTitle: 'Jak implementovat JavaScript kód',
+    vmDetailTitle: 'Detail vybraného výdejního místa:',
+    vmType: 'Typ:',
+    vmCode: 'Kód:',
+    vmName: 'Název:',
+    vmAddress: 'Adresa:',
+    vmCardPayment: 'Platba kartou:',
+    vmOpeningHours: 'Otevírací doba:',
+    headHelpContentCs: `
+        <div class="help-content-block">
+            <h4 class="help-content-subtitle">Kam vložit kód hlavičky?</h4>
+            <p>Kód hlavičky vložte mezi tagy <code>&lt;head&gt;</code> a <code>&lt;/head&gt;</code> vaší HTML stránky. Tento kód načítá CSS styly a JavaScript potřebné pro správnou funkci widgetu.</p>
+            <div class="example-structure">
+&lt;!DOCTYPE html&gt;
+&lt;html lang="cs"&gt;
+&lt;head&gt;
+  &lt;meta charset="UTF-8"&gt;
+  &lt;meta name="viewport" content="width=device-width, initial-scale=1.0"&gt;
+  &lt;title&gt;Váš e-shop - Výběr dopravy&lt;/title&gt;
+  <span class="highlight">&lt;!-- Sem vložte kód hlavičky PPL widgetu --&gt;
+  &lt;link rel="stylesheet" href="https://www.ppl.cz/sources/map/main.css"&gt;
+  &lt;script type="text/javascript" src="https://www.ppl.cz/sources/map/main.js" async&gt;&lt;/script&gt;</span>
+  &lt;!-- Další vaše styly a skripty --&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    ...
+&lt;/body&gt;
+&lt;/html&gt;
+            </div>
+            <div class="help-hint"><strong>TIP:</strong> Kód hlavičky stačí vložit pouze jednou, i když máte na stránce více widgetů.</div>
+        </div>
+        <div class="help-content-block">
+            <h4 class="help-content-subtitle">Příklad implementace v redakčním systému</h4>
+            <p>Pokud používáte redakční systém (např. WordPress), obvykle můžete vložit kód hlavičky do nastavení:</p>
+            <ul>
+                <li><strong>WordPress:</strong> Vzhled &gt; Editor motivu &gt; header.php</li>
+                <li><strong>Shoptet:</strong> Administrace &gt; Vzhled a obsah &gt; HTML kód &gt; HTML kód v hlavičce</li>
+                <li><strong>PrestaShop:</strong> Vzhled &gt; Záhlaví</li>
+            </ul>
+        </div>
+    `,
+    bodyHelpContentCs: `
+        <div class="help-content-block">
+            <h4 class="help-content-subtitle">Kam vložit kód těla?</h4>
+            <p>Kód těla vložte na místo, kde chcete zobrazit PPL widget. Typicky to bývá v sekci pro výběr dopravy při pokladně e-shopu nebo na stránce s kontakty.</p>
+            <div class="example-structure">
+&lt;!-- Příklad v košíku e-shopu --&gt;
+&lt;div class="shipping-options"&gt;
+  &lt;h3&gt;Vyberte způsob dopravy&lt;/h3&gt;
+  &lt;div class="shipping-option"&gt;
+      &lt;input type="radio" id="ppl-parcelshop" name="shipping" value="ppl"&gt;
+      &lt;label for="ppl-parcelshop"&gt;PPL Výdejní místo&lt;/label&gt;
+  &lt;/div&gt;
+  &lt;!-- Kontejner pro mapu s definovanou výškou --&gt;
+  &lt;div class="ppl-map-container" style="height: 600px; margin: 20px 0;"&gt;
+      <span class="highlight">&lt;!-- Sem vložte kód těla PPL widgetu --&gt;
+      &lt;div id="ppl-parcelshop-map" data-country="cz" data-countries="cz, sk" data-language="cs" data-mode="default"&gt;&lt;/div&gt;</span>
+  &lt;/div&gt;
+&lt;/div&gt;
+            </div>
+            <div class="help-hint"><strong>DŮLEŽITÉ:</strong> Rodičovský element (div), do kterého vkládáte PPL widget, by měl mít definovanou výšku (minimálně 550px) a šířku (minimálně 320px) pro správné zobrazení mapy.</div>
+        </div>
+        <div class="help-content-block">
+            <h4 class="help-content-subtitle">Možnosti zobrazení</h4>
+            <p>Widget můžete zobrazit jako:</p>
+            <ul>
+                <li><strong>Přímo na stránce</strong> - jak je ukázáno výše</li>
+                <li><strong>V modálním okně</strong> - které se otevře po kliknutí na tlačítko</li>
+                <li><strong>Na samostatné stránce</strong> - například na stránce "Výdejní místa"</li>
+            </ul>
+        </div>
+    `,
+    scriptHelpContentCs: `
+        <div class="help-content-block">
+            <h4 class="help-content-subtitle">Kam vložit JavaScript kód?</h4>
+            <p>JavaScript kód vložte na konec těla stránky těsně před uzavírací tag <code>&lt;/body&gt;</code>. Tento kód zachytává událost, když uživatel vybere výdejní místo na mapě.</p>
+            <div class="example-structure">
+<span class="highlight">&lt;!-- Sem vložte JavaScript kód pro zachycení vybraného místa --&gt;
+&lt;script&gt;
+window.addEventListener('message', function(event) {
+  if (event.data && event.data.event === 'pplPickupPointSelected') {
+    const selectedPoint = event.data.point;
+    // Zde můžete přidat vlastní kód pro zpracování vybraného místa
+  }
+});
+document.addEventListener("ppl-parcelshop-map", function(event) {
+  const detailVM = event.detail;
+  console.log('Vybráno výdejní místo (custom event):', detailVM);
+});
+&lt;/script&gt;</span>
+&lt;/body&gt;
+&lt;/html&gt;
+            </div>
+            <div class="help-hint"><strong>POZNÁMKA:</strong> Tento kód je potřeba pouze pro widgety v režimu "default", kde chcete zachytit informace o vybraném výdejním místě. Pro režimy "static" nebo "catalog" tento kód nepotřebujete.</div>
+        </div>
+        <div class="help-content-block">
+            <h4 class="help-content-subtitle">Co obsahuje vybrané výdejní místo?</h4>
+            <p>Objekt <code>selectedPoint</code> (nebo <code>event.detail</code>) obsahuje následující informace o vybraném výdejním místě: id, name, type, street, city, zip, country, latitude, longitude a další.</p>
+        </div>
+        <div class="help-content-block">
+            <h4 class="help-content-subtitle">Příklad praktického použití</h4>
+            <div class="example-structure">
+&lt;script&gt;
+window.addEventListener('message', function(event) {
+  if (event.data && event.data.event === 'pplPickupPointSelected') {
+    const selectedPoint = event.data.point;
+    // Uložení dat do skrytých polí formuláře
+    document.getElementById('pickup_id').value = selectedPoint.id;
+    // ... atd.
+  }
+});
+&lt;/script&gt;
+            </div>
+        </div>
+    `,
+    closeButton: "Zavřít",
+  },
+  en: {
+    lang: 'en',
+    title: 'PPL Widget Wizard',
+    step1Indicator: 'Select pickup point types',
+    // ... zbytek anglických překladů ...
+    headHelpContentEn: `
+        <div class="help-content-block">
+            <h4 class="help-content-subtitle">Where to insert the header code?</h4>
+            <p>Insert the header code between the <code>&lt;head&gt;</code> and <code>&lt;/head&gt;</code> tags of your HTML page. This code loads the CSS styles and JavaScript needed for the widget to function properly.</p>
+             <div class="example-structure">
+&lt;!DOCTYPE html&gt;
+&lt;html lang="en"&gt;
+&lt;head&gt;
+  &lt;meta charset="UTF-8"&gt;
+  &lt;meta name="viewport" content="width=device-width, initial-scale=1.0"&gt;
+  &lt;title&gt;Your e-shop - Shipping selection&lt;/title&gt;
+  <span class="highlight">&lt;!-- Insert PPL widget header code here --&gt;
+  &lt;link rel="stylesheet" href="https://www.ppl.cz/sources/map/main.css"&gt;
+  &lt;script type="text/javascript" src="https://www.ppl.cz/sources/map/main.js" async&gt;&lt;/script&gt;</span>
+  &lt;!-- Your other styles and scripts --&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    ...
+&lt;/body&gt;
+&lt;/html&gt;
+            </div>
+            <div class="help-hint"><strong>TIP:</strong> The header code only needs to be inserted once, even if you have multiple widgets on the page.</div>
+        </div>
+        <div class="help-content-block">
+            <h4 class="help-content-subtitle">Example implementation in content management systems</h4>
+            <p>If you're using a content management system (e.g., WordPress), you can usually insert the header code in the settings:</p>
+             <ul>
+                <li><strong>WordPress:</strong> Appearance &gt; Theme Editor &gt; header.php</li>
+                <li><strong>Shoptet:</strong> Administration &gt; Appearance and content &gt; HTML code &gt; HTML code in header</li>
+                <li><strong>PrestaShop:</strong> Appearance &gt; Header</li>
+            </ul>
+        </div>
+    `,
+    bodyHelpContentEn: `
+        <div class="help-content-block">
+            <h4 class="help-content-subtitle">Where to insert the body code?</h4>
+            <p>Insert the body code at the location where you want to display the PPL widget. This is typically in the shipping selection section at the e-shop checkout or on the contact page.</p>
+            <div class="example-structure">
+&lt;!-- Example in e-shop cart --&gt;
+&lt;div class="shipping-options"&gt;
+  &lt;h3&gt;Select shipping method&lt;/h3&gt;
+  &lt;div class="shipping-option"&gt;
+      &lt;input type="radio" id="ppl-parcelshop" name="shipping" value="ppl"&gt;
+      &lt;label for="ppl-parcelshop"&gt;PPL Pickup point&lt;/label&gt;
+  &lt;/div&gt;
+  &lt;!-- Container for map with defined height --&gt;
+  &lt;div class="ppl-map-container" style="height: 600px; margin: 20px 0;"&gt;
+      <span class="highlight">&lt;!-- Insert PPL widget body code here --&gt;
+      &lt;div id="ppl-parcelshop-map" data-country="cz" data-countries="cz, sk" data-language="en" data-mode="default"&gt;&lt;/div&gt;</span>
+  &lt;/div&gt;
+&lt;/div&gt;
+            </div>
+            <div class="help-hint"><strong>IMPORTANT:</strong> The parent element (div) into which you place the PPL widget should have a defined height (minimum 550px) and width (minimum 320px) for proper map display.</div>
+        </div>
+        <div class="help-content-block">
+            <h4 class="help-content-subtitle">Display options</h4>
+            <p>You can display the widget as:</p>
+            <ul>
+                <li><strong>Directly on the page</strong> - as shown above</li>
+                <li><strong>In a modal window</strong> - which opens after clicking a button</li>
+                <li><strong>On a separate page</strong> - for example on a "Pickup points" page</li>
+            </ul>
+        </div>
+    `,
+    scriptHelpContentEn: `
+        <div class="help-content-block">
+            <h4 class="help-content-subtitle">Where to insert the JavaScript code?</h4>
+            <p>Insert the JavaScript code at the end of the page body just before the closing <code>&lt;/body&gt;</code> tag. This code captures the event when a user selects a pickup point on the map.</p>
+            <div class="example-structure">
+<span class="highlight">&lt;!-- Insert JavaScript code for capturing the selected point here --&gt;
+&lt;script&gt;
+window.addEventListener('message', function(event) {
+  if (event.data && event.data.event === 'pplPickupPointSelected') {
+    const selectedPoint = event.data.point;
+    // Here you can add your own code for processing the selected point
+  }
+});
+&lt;/script&gt;</span>
+&lt;/body&gt;
+&lt;/html&gt;
+            </div>
+            <div class="help-hint"><strong>NOTE:</strong> This code is only needed for widgets in "default" mode, where you want to capture information about the selected pickup point. For "static" or "catalog" modes, you don't need this code.</div>
+        </div>
+        <div class="help-content-block">
+            <h4 class="help-content-subtitle">What does the selected pickup point contain?</h4>
+            <p>The <code>selectedPoint</code> object contains the following information about the selected pickup point: id, name, type, street, city, zip, country, latitude, longitude and other information.</p>
+        </div>
+        <div class="help-content-block">
+            <h4 class="help-content-subtitle">Example of practical use</h4>
+            <div class="example-structure">
+&lt;script&gt;
+window.addEventListener('message', function(event) {
+  if (event.data && event.data.event === 'pplPickupPointSelected') {
+    const selectedPoint = event.data.point;
+    // Saving data to hidden form fields
+    document.getElementById('pickup_id').value = selectedPoint.id;
+    // ... etc.
+  }
+});
+&lt;/script&gt;
+            </div>
+        </div>
+    `,
+    closeButton: "Close",
+  },
+};
+
+// Typy, pokud je potřebujete definovat zde a nejsou exportovány z HelpPopup
+export interface HelpContentBlockStructure {
+  type: 'subtitle' | 'paragraph' | 'code' | 'hint' | 'list';
+  text?: string;
+  code?: string;
+  items?: string[];
+  highlight?: boolean;
+}
+
+function App() {
+  const [currentStep, setCurrentStep] = useState(1);
+  const [language, setLanguage] = useState<'cs' | 'en'>('cs');
+  // Přejmenováno pro srozumitelnost
+  const [currentTranslations, setCurrentTranslations] = useState(allTranslations.cs);
+
+  // Stavy pro formulářová data
+  const [selectedPointTypes, setSelectedPointTypes] = useState({
+    parcelshop: true,
+    parcelbox: false,
+    alzabox: false,
+  });
+  const [selectedCountries, setSelectedCountries] = useState({
+    cz: true,
+    sk: false,
+    pl: false,
+    de: false,
+  });
+  const [defaultCountry, setDefaultCountry] = useState('cz');
+  const [widgetLanguage, setWidgetLanguage] = useState<'cs' | 'en'>('cs');
+  const [mapType, setMapType] = useState<'default' | 'static' | 'catalog'>('default');
+  const [mapCoordinates, setMapCoordinates] = useState({ lat: '', lng: '' });
+
+  const [generatedHeadCode, setGeneratedHeadCode] = useState('');
+  const [generatedBodyCode, setGeneratedBodyCode] = useState('');
+  const [generatedScriptCode, setGeneratedScriptCode] = useState('');
+
+  const [step1Validation, setStep1Validation] = useState('');
+  const [step2Validation, setStep2Validation] = useState('');
+  const [step3ValidationCountry, setStep3ValidationCountry] = useState('');
+  const [step4ValidationCoords, setStep4ValidationCoords] = useState('');
+
+  // Stavy pro nápovědu (použijeme tento mechanismus)
+  const [activeHelpType, setActiveHelpType] = useState<'head' | 'body' | 'script' | null>(null);
+  const [currentHelpContent, setCurrentHelpContent] = useState<{ title: string; contentHtml: string }>({ title: '', contentHtml: '' });
+  
+  // Odstraněné stavy, které se zdály být duplicitní nebo pro zrušené verzování
+  // const [isHelpPopupOpen, setIsHelpPopupOpen] = useState(false);
+  // const [helpPopupData, setHelpPopupData] = useState<{ title: string; blocks: HelpContentBlockStructure[] } | null>(null);
+  // const [zobrazitHistoriiZmen, setZobrazitHistoriiZmen] = useState(false);
+  // const MOJE_AKTUALNI_VERZE_WIZARDU = "2.7.0";
+  // const historieZmenData = ...
+  // const formatujHistoriiProPopup = ...
+
+
+  useEffect(() => {
+    setCurrentTranslations(allTranslations[language]);
+  }, [language]);
+
+  useEffect(() => {
+    const firstAvailableCountry = Object.keys(selectedCountries).find(
+      (c) => selectedCountries[c as keyof typeof selectedCountries]
+    );
+    if (firstAvailableCountry) {
+      if (!selectedCountries[defaultCountry as keyof typeof selectedCountries] || !defaultCountry) {
+          setDefaultCountry(firstAvailableCountry);
+      }
+    } else {
+      setDefaultCountry('');
+    }
+  }, [selectedCountries, defaultCountry]);
+
+
+  const updateStepIndicators = useCallback((activeStepNum: number) => {
+    document.querySelectorAll('.wizard-step').forEach((indicator) => {
+      const stepNum = parseInt((indicator as HTMLElement).dataset.step || "0");
+      indicator.classList.remove('active', 'completed');
+      if (stepNum === activeStepNum) {
+        indicator.classList.add('active');
+      } else if (stepNum < activeStepNum) {
+        indicator.classList.add('completed');
+      }
+    });
+  }, []);
+
+  const navigateToStep = useCallback((stepNumber: number) => {
+    setCurrentStep(stepNumber);
+    updateStepIndicators(stepNumber);
+  }, [updateStepIndicators]);
+
+
+  const generateCodes = useCallback(() => {
+    const hidden: string[] = [];
+    if (!selectedPointTypes.parcelshop) hidden.push('ParcelShop');
+    if (!selectedPointTypes.parcelbox) hidden.push('ParcelBox');
+    if (!selectedPointTypes.alzabox) hidden.push('AlzaBox');
+
+    const countriesStr = Object.keys(selectedCountries)
+      .filter((c) => selectedCountries[c as keyof typeof selectedCountries])
+      .join(',');
+
+    const head = `<link rel="stylesheet" href="https://www.ppl.cz/sources/map/main.css">\n<script type="text/javascript" src="https://www.ppl.cz/sources/map/main.js" async><\/script>`;
+    setGeneratedHeadCode(head);
+
+    let bodyAttrs = `data-country="${defaultCountry}" data-countries="${countriesStr}" data-language="${widgetLanguage}" data-mode="${mapType}"`;
+    if (hidden.length > 0) {
+      bodyAttrs += ` data-hiddenpoints="${hidden.join(',')}"`;
+    }
+    if (mapType === 'static' && mapCoordinates.lat && mapCoordinates.lng) {
+      bodyAttrs += ` data-lat="${mapCoordinates.lat}" data-lng="${mapCoordinates.lng}"`;
+    }
+    const body = `<div id="ppl-parcelshop-map" ${bodyAttrs.trim()}></div>`;
+    setGeneratedBodyCode(body);
+
+    let script = '';
+    if (mapType === 'default') {
+      script = `<script>\nwindow.addEventListener('message', function(event) {\n    if (event.data && event.data.event === 'pplPickupPointSelected') {\n        const selectedPoint = event.data.point;\n        console.log('Vybráno výdejní místo (message event):', selectedPoint);\n        // Zde můžete přidat vlastní kód pro zpracování vybraného místa\n    }\n});\ndocument.addEventListener("ppl-parcelshop-map", function(event) {\n    const detailVM = event.detail;\n    console.log('Vybráno výdejní místo (custom event):', detailVM);\n});\n<\/script>`;
+    } else {
+      script = `<script>\n// Pro typ mapy "${mapType}" není standardně potřeba tento listener,\n// jelikož ${
+        mapType === 'static'
+          ? 'zobrazuje pouze statický bod.'
+          : 'neslouží k aktivnímu výběru místa pro odeslání dat.'
+      }\n<\/script>`;
+    }
+    setGeneratedScriptCode(script);
+  }, [
+    selectedPointTypes,
+    selectedCountries,
+    defaultCountry,
+    widgetLanguage,
+    mapType,
+    mapCoordinates,
+  ]);
+
+
+  const handleNextStep = () => {
+    let valid = true;
+    if (currentStep === 1) {
+      if (
+        !selectedPointTypes.parcelshop &&
+        !selectedPointTypes.parcelbox &&
+        !selectedPointTypes.alzabox
+      ) {
+        setStep1Validation(currentTranslations.selectAtLeastOnePoint);
+        valid = false;
+      } else {
+        setStep1Validation('');
+      }
+    } else if (currentStep === 2) {
+      if (!Object.values(selectedCountries).some((val) => val)) {
+        setStep2Validation(currentTranslations.selectAtLeastOneCountry);
+        valid = false;
+      } else {
+        setStep2Validation('');
+      }
+    } else if (currentStep === 3) {
+      if (!defaultCountry) {
+        setStep3ValidationCountry(currentTranslations.selectDefaultCountry);
+        valid = false;
+      } else {
+        setStep3ValidationCountry('');
+      }
+    } else if (currentStep === 4) {
+      if (mapType === 'static') {
+        if (!mapCoordinates.lat.trim() || !mapCoordinates.lng.trim()) {
+          setStep4ValidationCoords(currentTranslations.enterCoordinates);
+          valid = false;
+        } else if (
+          isNaN(parseFloat(mapCoordinates.lat)) ||
+          isNaN(parseFloat(mapCoordinates.lng))
+        ) {
+          setStep4ValidationCoords(currentTranslations.enterValidCoordinates);
+          valid = false;
+        } else {
+          setStep4ValidationCoords('');
+        }
+      } else {
+        setStep4ValidationCoords('');
+      }
+      if (valid) {
+        generateCodes();
+      }
+    }
+
+    if (valid && currentStep < 6) {
+      navigateToStep(currentStep + 1);
+    }
+  };
+
+  const handlePrevStep = () => {
+    if (currentStep === 6) {
+      navigateToStep(5);
+    } else if (currentStep > 1) {
+      navigateToStep(currentStep - 1);
+    }
+  };
+
+  const handleStepIndicatorClick = (stepNumber: number) => {
+    if (stepNumber <= currentStep && stepNumber !== 5 && stepNumber !==6 ) {
+        if (currentStep === 5 || currentStep === 6) {
+            if (stepNumber < 5) navigateToStep(stepNumber);
+        } else {
+            navigateToStep(stepNumber);
+        }
+    } else if (stepNumber === 5 && currentStep >= 4) {
+        if (currentStep === 4) {
+             let step4Valid = true;
+             if (mapType === 'static') {
+                if (!mapCoordinates.lat.trim() || !mapCoordinates.lng.trim()) step4Valid = false;
+                else if (isNaN(parseFloat(mapCoordinates.lat)) || isNaN(parseFloat(mapCoordinates.lng))) step4Valid = false;
+            }
+            if (step4Valid) {
+                generateCodes();
+                navigateToStep(5);
+            } else {
+                alert(currentTranslations.enterValidCoordinates || "Nejprve dokončete a validujte Krok 4.");
+            }
+        } else if (currentStep >= 5) {
+             navigateToStep(5);
+        }
+    }
+  };
+
+
+  useEffect(() => {
+    if (currentStep >= 5) {
+      generateCodes();
+    }
+  }, [currentStep, generateCodes]);
+
+  const widgetConfigForStep6 = useMemo(() => {
+    return {
+        hiddenPoints: Object.entries(selectedPointTypes)
+            .filter(([, value]) => !value)
+            .map(([key]) => {
+                if (key === 'parcelshop') return 'ParcelShop';
+                if (key === 'parcelbox') return 'ParcelBox';
+                if (key === 'alzabox') return 'AlzaBox';
+                return null;
+            }).filter(Boolean) as string[],
+        defaultCountry: defaultCountry,
+        countries: Object.keys(selectedCountries).filter(c => selectedCountries[c as keyof typeof selectedCountries]),
+        language: widgetLanguage,
+        mode: mapType,
+        lat: mapType === 'static' ? mapCoordinates.lat : undefined,
+        lng: mapType === 'static' ? mapCoordinates.lng : undefined,
+    };
+  }, [selectedPointTypes, defaultCountry, selectedCountries, widgetLanguage, mapType, mapCoordinates]);
+
+  const showHelp = useCallback((type: 'head' | 'body' | 'script') => {
+    let titleKey: keyof typeof currentTranslations = 'headHelpTitle';
+    let contentKey: keyof typeof currentTranslations = language === 'cs' ? 'headHelpContentCs' : 'headHelpContentEn';
+
+    if (type === 'head') {
+        titleKey = 'headHelpTitle';
+        contentKey = language === 'cs' ? 'headHelpContentCs' : 'headHelpContentEn';
+    } else if (type === 'body') {
+        titleKey = 'bodyHelpTitle';
+        contentKey = language === 'cs' ? 'bodyHelpContentCs' : 'bodyHelpContentEn';
+    } else if (type === 'script') {
+        titleKey = 'scriptHelpTitle';
+        contentKey = language === 'cs' ? 'scriptHelpContentCs' : 'scriptHelpContentEn';
+    }
+
+    const title = currentTranslations[titleKey];
+    const contentHtml = currentTranslations[contentKey];
+
+    if (title && contentHtml) {
+        setCurrentHelpContent({
+            title: String(title),
+            contentHtml: String(contentHtml)
+        });
+        setActiveHelpType(type);
+    } else {
+        console.error("Chybějící překlady pro nápovědu typu:", type, "v jazyce:", language, "Klíče:", titleKey, contentKey);
+        setCurrentHelpContent({
+            title: "Nápověda",
+            contentHtml: "<p>Obsah nápovědy pro tento typ nebyl nalezen.</p>"
+        });
+        setActiveHelpType(type);
+    }
+  }, [language, currentTranslations]);
+
+  const closeHelp = useCallback(() => {
+    setActiveHelpType(null);
+  }, []);
+
+
+  useEffect(() => {
+    updateStepIndicators(currentStep);
+  }, [updateStepIndicators, currentStep]);
+
+  if (!currentTranslations.title) {
+    return <div>Načítání...</div>;
+  }
+
+  return (
+    <> {/* Hlavní React Fragment */}
+      <div className="container">
+        <WizardHeader title={currentTranslations.title} />
+        <LanguageSelector
+          currentLanguage={language}
+          setLanguage={setLanguage}
+          translations={currentTranslations}
+        />
+        <WizardProgress
+          currentStep={currentStep}
+          translations={currentTranslations}
+          onStepClick={handleStepIndicatorClick}
+        />
+
+        <div className="wizard-content-wrapper">
+          {currentStep === 1 && (
+            <Step1
+              translations={currentTranslations}
+              selectedPointTypes={selectedPointTypes}
+              setSelectedPointTypes={setSelectedPointTypes}
+              onNext={handleNextStep}
+              validationMessage={step1Validation}
+              clearValidation={() => setStep1Validation('')}
+            />
+          )}
+          {currentStep === 2 && (
+            <Step2
+              translations={currentTranslations}
+              selectedCountries={selectedCountries}
+              setSelectedCountries={setSelectedCountries}
+              onNext={handleNextStep}
+              onPrev={handlePrevStep}
+              validationMessage={step2Validation}
+              clearValidation={() => setStep2Validation('')}
+            />
+          )}
+          {currentStep === 3 && (
+            <Step3
+              translations={currentTranslations}
+              selectedCountries={selectedCountries}
+              defaultCountry={defaultCountry}
+              setDefaultCountry={setDefaultCountry}
+              widgetLanguage={widgetLanguage}
+              setWidgetLanguage={setWidgetLanguage}
+              onNext={handleNextStep}
+              onPrev={handlePrevStep}
+              validationMessage={step3ValidationCountry}
+              clearValidation={() => setStep3ValidationCountry('')}
+            />
+          )}
+          {currentStep === 4 && (
+            <Step4
+              translations={currentTranslations}
+              mapType={mapType}
+              setMapType={setMapType}
+              mapCoordinates={mapCoordinates}
+              setMapCoordinates={setMapCoordinates}
+              onNext={handleNextStep}
+              onPrev={handlePrevStep}
+              validationMessage={step4ValidationCoords}
+              clearValidation={() => setStep4ValidationCoords('')}
+            />
+          )}
+          {currentStep === 5 && (
+            <Step5
+              translations={currentTranslations}
+              headCode={generatedHeadCode}
+              bodyCode={generatedBodyCode}
+              scriptCode={generatedScriptCode}
+              onPrev={() => navigateToStep(1)} // Nebo na krok 4, podle vaší logiky
+              onGoToPreview={() => navigateToStep(6)}
+              onShowHelp={showHelp}
+              language={language}
+              allTranslations={allTranslations} // allTranslations pro Step5, pokud potřebuje přístup ke všem
+            />
+          )}
+          {currentStep === 6 && (
+            <Step6
+              translations={currentTranslations}
+              onPrev={handlePrevStep} // Opraveno na handlePrevStep
+              widgetConfig={widgetConfigForStep6}
+            />
+          )}
+          {/* Odstraněno VersionInfo, protože verzování je zrušeno */}
+        </div> {/* Konec <div className="wizard-content-wrapper"> */}
+        {/* Komentář na tomto řádku byl odstraněn */}
+      </div> {/* Konec <div className="container"> */}
+
+      {/* HelpPopup pro nápovědu ke kódu */}
+      {activeHelpType && currentHelpContent.contentHtml && (
+          <HelpPopup
+              isOpen={!!activeHelpType} // Explicitní isOpen
+              title={currentHelpContent.title}
+              contentHtml={currentHelpContent.contentHtml}
+              onClose={closeHelp}
+              translations={{ closeButton: currentTranslations.closeButton }}
+          />
+      )}
+      {/* Odstraněn HelpPopup pro changelog, protože verzování je zrušeno */}
+    </> // Konec hlavního React Fragmentu
+  );
+}
+
+export default App;
