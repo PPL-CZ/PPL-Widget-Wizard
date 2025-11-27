@@ -14,7 +14,7 @@ export interface CountryConfig {
 
 // AKTIVNÍ FÁZE: Zde jednoduše přidáš číslo fáze, kterou chceš aktivovat.
 // Např. [1] zobrazí jen první vlnu, [1, 2] zobrazí obě.
-export const ACTIVE_PHASES: number[] = [1];
+export const ACTIVE_PHASES: number[] = [1, 2];
 
 // Seznam všech podporovaných zemí
 export const allCountries: CountryConfig[] = [
